@@ -1,0 +1,41 @@
+{
+  "name": "ivanbaric/sanigen",
+  "description": "Declarative sanitization and attribute generators for Eloquent models.",
+  "type": "library",
+  "license": "MIT",
+  "version": "1.0.0",
+  "autoload": {
+    "psr-4": {
+      "IvanBaric\\Sanigen\\": "src/"
+    }
+  },
+  "autoload-dev": {
+    "psr-4": {
+      "Tests\\": "tests/"
+    }
+  },
+  "extra": {
+    "laravel": {
+      "providers": [
+        "IvanBaric\\Sanigen\\SanigenServiceProvider"
+      ]
+    }
+  },
+  "require": {
+    "php": "^8.2",
+    "illuminate/support": "^12.0"
+  },
+  "require-dev": {
+    "orchestra/testbench": "^10.0",
+    "laravel/pint": "^1.0",
+    "phpstan/phpstan": "^1.10",
+    "pestphp/pest": "^3.8"
+  },
+  "minimum-stability": "dev",
+  "prefer-stable": true,
+  "config": {
+    "allow-plugins": {
+      "pestphp/pest-plugin": true
+    }
+  }
+}

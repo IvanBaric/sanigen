@@ -1,0 +1,27 @@
+# Composer dependencies
+/vendor/
+
+# OS specifične datoteke
+.DS_Store
+Thumbs.db
+
+# IDE datoteke (primjer za VSCode, PHPStorm)
+/.idea/
+/.vscode/
+
+# Logovi i privremene datoteke
+*.log
+*.cache
+*.tmp
+
+# Node modules (ako koristiš node)
+/node_modules/
+
+# Laravel specifično (ako je paket i Laravel app)
+/storage/
+/bootstrap/cache/
+
+# PHPUnit cache
+.phpunit.result.cache
+
+/composer.lock
