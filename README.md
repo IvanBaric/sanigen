@@ -259,7 +259,6 @@ Sanigen includes several built-in generators:
 |-----------|-------------|---------|
 | `autoincrement` | Increments from the highest existing value | `1`, `2`, `3`, ... |
 | `carbon:+7 days` | Creates a date with the specified offset | Current date + 7 days |
-| `offset:+7 days` | *Deprecated: use `carbon` instead* | Current date + 7 days |
 | `random_string:8` | Generates a random string of specified length | `"a1b2c3d4"` (random string) |
 | `slugify:field` | Creates a unique slug from another field (ensures uniqueness by appending incremental suffixes like -1, -2, etc.) | `"my-post-title"` |
 | `ulid` | Generates a ULID (sortable identifier) | `"01F8MECHZX3TBDSZ7XR1QKR505"` |
@@ -276,8 +275,7 @@ protected $generate = [
     'code' => 'unique_string:6',      // 6-character unique random string (ensures uniqueness)
     'token' => 'random_string:16',  // 16-character random string (no uniqueness check)
     'slug' => 'slugify:title',      // Unique slug based on the title field (with -1, -2 suffixes if needed)
-    'expires_at' => 'carbon:+30 days', // Date 30 days in the future
-    // 'expires_at' => 'offset:+30 days', // Deprecated: use 'carbon' instead
+    'expires_at' => 'carbon:+30 days', // Date 30 days in the future (carbon:now, carbon:tomorrow 14:00 etc.)
     'author_id' => 'user:id',       // Current user's ID
     'team_id' => 'user:current_team_id', // Current user's team ID
     'author_email' => 'user:email', // Current user's email
@@ -457,6 +455,14 @@ $post = Post::create($validated);
 ```
 
 
+## Similar Packages
+
+If you're looking for alternatives or complementary packages to Sanigen, here are some other Laravel packages that provide similar functionality:
+
+- [Elegant Sanitizer](https://github.com/Waavi/Sanitizer) - A Laravel package that provides an elegant way to sanitize and transform input data.
+- [WAAVI Sanitizer](https://github.com/Waavi/Sanitizer) - Provides an easy way to format user input, both through the provided filters or through custom ones that can easily be added to the sanitizer library.
+
+Each of these packages takes a slightly different approach to data sanitization and generation, so you might find one that better suits your specific needs or use them together for more comprehensive data handling.
 
 ## Contributing
 
