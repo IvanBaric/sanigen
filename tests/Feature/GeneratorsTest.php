@@ -103,13 +103,83 @@ test('generates random string values', function () {
     expect(strlen($model->random_string_field))->toBe(12);
 });
 
-test('generates slug values', function () {
+test('generates slug values with default increment suffix when needed', function () {
     $model = BasicGeneratorTestModel::create([
         'title' => 'Test Title With Special Characters: & % $ #'
     ]);
 
     // Assert that the slug was generated from the title
     expect($model->slug_field)->toBe('test-title-with-special-characters');
+
+    // Create another model with the same title to test the increment suffix
+    $model2 = BasicGeneratorTestModel::create([
+        'title' => 'Test Title With Special Characters: & % $ #'
+    ]);
+
+    // Assert that the second slug has an increment suffix
+    expect($model2->slug_field)->toBe('test-title-with-special-characters-1');
+});
+
+test('generates slug values with date suffix and ensures uniqueness', function () {
+    // Register a test model with date suffix
+    class SlugDateSuffixTestModel extends \Tests\BaseGeneratorTestModel
+    {
+        protected $generate = [
+            'slug_field' => 'slugify:title,date'
+        ];
+    }
+
+    // Configure the date format for testing
+    config(['sanigen.generator_settings.slugify.suffix_type' => 'date']);
+    config(['sanigen.generator_settings.slugify.date_format' => 'Ymd']);
+
+    $model = SlugDateSuffixTestModel::create([
+        'title' => 'Test Title'
+    ]);
+
+    // Create a second model with the same title to trigger date suffix
+    $model2 = SlugDateSuffixTestModel::create([
+        'title' => 'Test Title'
+    ]);
+
+    // Create a third model with the same title to trigger incremental suffix
+    $model3 = SlugDateSuffixTestModel::create([
+        'title' => 'Test Title'
+    ]);
+
+    // Assert that the slug has a date suffix in the expected format
+    $expectedDateSuffix = now()->format('Ymd');
+    expect($model->slug_field)->toBe("test-title");
+    expect($model2->slug_field)->toBe("test-title-{$expectedDateSuffix}");
+
+    // Assert that the third slug has both date and incremental suffix
+    expect($model3->slug_field)->toBe("test-title-{$expectedDateSuffix}-1");
+});
+
+
+test('generates slug values with uuid suffix', function () {
+    // Register a test model with uuid suffix
+    class SlugUuidSuffixTestModel extends \Tests\BaseGeneratorTestModel
+    {
+        protected $generate = [
+            'slug_field' => 'slugify:title,uuid'
+        ];
+    }
+
+    // Configure the suffix type for testing
+    config(['sanigen.generator_settings.slugify.suffix_type' => 'uuid']);
+
+    $model = SlugUuidSuffixTestModel::create([
+        'title' => 'Test Title'
+    ]);
+
+    // Create a second model with the same title to trigger suffix
+    $model2 = SlugUuidSuffixTestModel::create([
+        'title' => 'Test Title'
+    ]);
+
+    // Assert that the slug has a uuid suffix
+    expect($model2->slug_field)->toMatch('/^test-title-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i');
 });
 
 

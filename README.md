@@ -260,7 +260,7 @@ Sanigen includes several built-in generators:
 | `autoincrement` | Increments from the highest existing value | `1`, `2`, `3`, ... |
 | `carbon:+7 days` | Creates a date with the specified offset | Current date + 7 days |
 | `random_string:8` | Generates a random string of specified length | `"a1b2c3d4"` (random string) |
-| `slugify:field` | Creates a unique slug from another field (ensures uniqueness by appending incremental suffixes like -1, -2, etc.) | `"my-post-title"` |
+| `slugify:field` | Creates a unique slug from another field (ensures uniqueness with configurable suffix types) | `"my-post-title"`, `"my-post-title-2023-07-20"` |
 | `ulid` | Generates a ULID (sortable identifier) | `"01F8MECHZX3TBDSZ7XR1QKR505"` |
 | `unique_string:8` | Generates a unique random string of specified length (ensures uniqueness by checking the database) | `"a1b2c3d4"` (8 chars) |
 | `user:property` | Uses a property from the authenticated user | `"john@example.com"` (user's email) |
@@ -389,6 +389,53 @@ Set the default character encoding for sanitizers:
 ```php
 // In config/sanigen.php
 'encoding' => 'UTF-8',
+
+    // Generator settings
+    'generator_settings' => [
+        // Slug Generator Settings
+        'slugify' => [
+            // Type of suffix to use for ensuring uniqueness
+            // Options: 'increment', 'date', 'uuid'
+            'suffix_type' => 'increment',
+
+            // Format for date suffix (used when suffix_type is 'date')
+            'date_format' => 'Y-m-d',
+        ],
+    ],
+```
+
+### Slug Generator Configuration
+
+The slug generator (`slugify`) can be configured to use different types of suffixes for ensuring uniqueness:
+
+```php
+// In config/sanigen.php
+'generator_settings' => [
+    'slugify' => [
+        // Type of suffix to use for ensuring uniqueness
+        // Options: 'increment', 'date', 'uuid'
+        'suffix_type' => 'increment',
+
+        // Format for date suffix (used when suffix_type is 'date')
+        'date_format' => 'Y-m-d',
+    ],
+],
+```
+
+Available suffix types:
+
+- `increment`: Appends an incremental number (e.g., `-1`, `-2`, `-3`) to ensure uniqueness (default)
+- `date`: Appends the current date in the specified format (e.g., `-2023-07-20`)
+- `uuid`: Appends a UUID to ensure uniqueness (e.g., `-550e8400-e29b-41d4-a716-446655440000`)
+
+You can also specify the suffix type directly in your model:
+
+```php
+// In your model
+protected $generate = [
+    'slug' => 'slugify:title,date', // Use date suffix
+    'another_slug' => 'slugify:name,uuid', // Use uuid suffix
+];
 ```
 
 ## Advanced Usage

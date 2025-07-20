@@ -116,4 +116,26 @@ return [
     */
     'encoding' => 'UTF-8',
 
+    /*
+    |--------------------------------------------------------------------------
+    | Generator Settings
+    |--------------------------------------------------------------------------
+    |
+    | This section contains settings for various generators used by the package.
+    | You can customize the behavior of each generator according to your needs.
+    |
+    */
+    'generator_settings' => [
+        // Slug Generator Settings
+        'slugify' => [
+            // Type of suffix to use for ensuring uniqueness
+            // Options: 'increment', 'date', 'uuid'
+            'suffix_type' => 'increment',
+
+            // Format for date suffix (used when suffix_type is 'date')
+            // Uses PHP date format: https://www.php.net/manual/en/datetime.format.php
+            'date_format' => 'd-m-Y',
+        ],
+    ],
+
 ];
