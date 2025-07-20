@@ -32,6 +32,7 @@ class GeneratorRegistry
         'slugify' => SlugGenerator::class,
         'offset' => DateOffsetGenerator::class,
         'auth_id' => AuthIdGenerator::class,
+        'user' => UserPropertyGenerator::class,
     ];
 
     /**
@@ -47,11 +48,6 @@ class GeneratorRegistry
     {
         [$alias, $param] = array_pad(explode(':', $key, 2), 2, null);
 
-        // Special handling for user property generator
-        if ($alias === 'user') {
-            return new UserPropertyGenerator($param ?? 'id');
-        }
-
         $class = static::$map[$alias] ?? null;
 
         if (!$class) {
@@ -63,6 +59,7 @@ class GeneratorRegistry
             'random_string' => new $class((int) $param ?: 8),
             'slugify' => new $class($param ?: 'title'),
             'offset' => new $class($param ?? '+7 days'),
+            'user' => new $class($param ?? 'id'),
             default => app($class),
         };
     }
