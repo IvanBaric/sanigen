@@ -54,13 +54,8 @@ class GeneratorRegistry
             throw new \InvalidArgumentException("Generator with key '{$alias}' does not exist. Check if you have specified the correct generator key.");
         }
 
-        // Pass the parameter to the generator constructor if provided
-        if ($param !== null) {
-            return new $class($param);
-        }
-
-        // If no parameter is provided, let the generator use its default
-        return new $class();
+        // Always instantiate the class, parameter will be used if provided
+        return new $class($param);
     }
 
     /**
