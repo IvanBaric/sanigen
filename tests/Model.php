@@ -9,7 +9,7 @@ use IvanBaric\Sanigen\Traits\HasGenerators;
 class BaseGeneratorTestModel extends Model
 {
     use HasGenerators;
-    
+
     protected $table = 'generator_test_models';
     protected $fillable = [
         'title', 'uuid_field', 'ulid_field', 'auto_increment_field', 
@@ -26,10 +26,10 @@ class BasicGeneratorTestModel extends BaseGeneratorTestModel
         'uuid_field' => 'uuid',
         'ulid_field' => 'ulid',
         'auto_increment_field' => 'autoincrement',
-        'unique_code_field' => 'unique_code:10',
+        'unique_code_field' => 'unique_string:10',
         'random_string_field' => 'random_string:12',
         'slug_field' => 'slugify:title',
-        'date_offset_field' => 'offset:+7 days',
+        'date_offset_field' => 'carbon:+7 days',
     ];
 }
 
@@ -46,5 +46,13 @@ class UserPropertyGeneratorTestModel extends BaseGeneratorTestModel
 {
     protected $generate = [
         'user_property_field' => 'user:email',
+    ];
+}
+
+// Model for testing carbon generator
+class CarbonGeneratorTestModel extends BaseGeneratorTestModel
+{
+    protected $generate = [
+        'date_offset_field' => 'carbon:+14 days',
     ];
 }

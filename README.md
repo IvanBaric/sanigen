@@ -56,16 +56,16 @@ After publishing the configuration, you can customize the package behavior in `c
 return [
     // Enable or disable the package functionality
     'enabled' => true,
-    
+
     // Define sanitization aliases (pipelines of sanitizers)
     'sanitization_aliases' => [
         'text:clean' => 'trim|strip_tags|remove_newlines|single_space',
         // ... more aliases
     ],
-    
+
     // Configure allowed HTML tags for sanitizers that strip tags
     'allowed_html_tags' => '<p><b><i><strong><em><ul><ol><li><br><a><h1><h2><h3><h4><h5><h6><table><tr><td><th><thead><tbody><code><pre><blockquote><q><cite><hr><dl><dt><dd>',
-    
+
     // Set default encoding for sanitizers
     'encoding' => 'UTF-8',
 ];
@@ -82,13 +82,13 @@ use IvanBaric\Sanigen\Traits\Sanigen;
 class Post extends Model
 {
     use Sanigen;
-    
+
     // Define attributes to be generated on model creation
     protected $generate = [
         'slug' => 'slugify:title',
         'uuid' => 'uuid',
     ];
-    
+
     // Define sanitization rules for attributes
     protected $sanitize = [
         'title' => 'text:title',
@@ -258,11 +258,12 @@ Sanigen includes several built-in generators:
 | Generator | Description | Example |
 |-----------|-------------|---------|
 | `autoincrement` | Increments from the highest existing value | `1`, `2`, `3`, ... |
-| `offset:+7 days` | Creates a date with the specified offset | Current date + 7 days |
+| `carbon:+7 days` | Creates a date with the specified offset | Current date + 7 days |
+| `offset:+7 days` | *Deprecated: use `carbon` instead* | Current date + 7 days |
 | `random_string:8` | Generates a random string of specified length | `"a1b2c3d4"` (random string) |
 | `slugify:field` | Creates a unique slug from another field (ensures uniqueness by appending incremental suffixes like -1, -2, etc.) | `"my-post-title"` |
 | `ulid` | Generates a ULID (sortable identifier) | `"01F8MECHZX3TBDSZ7XR1QKR505"` |
-| `unique_code:8` | Generates a unique random string of specified length (ensures uniqueness by checking the database) | `"a1b2c3d4"` (8 chars) |
+| `unique_string:8` | Generates a unique random string of specified length (ensures uniqueness by checking the database) | `"a1b2c3d4"` (8 chars) |
 | `user:property` | Uses a property from the authenticated user | `"john@example.com"` (user's email) |
 | `uuid` | Generates a UUID v4 | `"550e8400-e29b-41d4-a716-446655440000"` |
 
@@ -272,10 +273,11 @@ Many generators accept parameters using the colon syntax:
 
 ```php
 protected $generate = [
-    'code' => 'unique_code:6',      // 6-character unique random code (ensures uniqueness)
+    'code' => 'unique_string:6',      // 6-character unique random string (ensures uniqueness)
     'token' => 'random_string:16',  // 16-character random string (no uniqueness check)
     'slug' => 'slugify:title',      // Unique slug based on the title field (with -1, -2 suffixes if needed)
-    'expires_at' => 'offset:+30 days', // Date 30 days in the future
+    'expires_at' => 'carbon:+30 days', // Date 30 days in the future
+    // 'expires_at' => 'offset:+30 days', // Deprecated: use 'carbon' instead
     'author_id' => 'user:id',       // Current user's ID
     'team_id' => 'user:current_team_id', // Current user's team ID
     'author_email' => 'user:email', // Current user's email
@@ -350,7 +352,7 @@ Define your own aliases in the configuration:
 'sanitization_aliases' => [
     // Standard text processing
     'text:clean' => 'trim|strip_tags|remove_newlines|single_space',
-    
+
     // Custom aliases for your application
     'username' => 'trim|lower|alphanumeric_only',
     'product:sku' => 'trim|upper|ascii_only',
@@ -397,11 +399,11 @@ One powerful feature of Sanigen is the ability to combine generators and sanitiz
 class Coupon extends Model
 {
     use Sanigen;
-    
+
     protected $generate = [
-        'code' => 'unique_code:6', // Generate a 6-character unique random code
+        'code' => 'unique_string:6', // Generate a 6-character unique random string
     ];
-    
+
     protected $sanitize = [
         'code' => 'upper', // Convert the code to uppercase
     ];
@@ -415,7 +417,7 @@ $coupon = Coupon::create();
 ```
 
 The flow is:
-1. The unique_code generator creates a unique random 6-character code (e.g., "a1b2c3")
+1. The unique_string generator creates a unique random 6-character string (e.g., "a1b2c3")
 2. The uppercase sanitizer converts it to uppercase (e.g., "A1B2C3")
 
 The result is a 6-character uppercase code that is both generated and sanitized automatically.
