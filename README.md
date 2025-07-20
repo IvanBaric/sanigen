@@ -389,19 +389,6 @@ Set the default character encoding for sanitizers:
 ```php
 // In config/sanigen.php
 'encoding' => 'UTF-8',
-
-    // Generator settings
-    'generator_settings' => [
-        // Slug Generator Settings
-        'slugify' => [
-            // Type of suffix to use for ensuring uniqueness
-            // Options: 'increment', 'date', 'uuid'
-            'suffix_type' => 'increment',
-
-            // Format for date suffix (used when suffix_type is 'date')
-            'date_format' => 'Y-m-d',
-        ],
-    ],
 ```
 
 ### Slug Generator Configuration
