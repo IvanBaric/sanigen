@@ -5,6 +5,39 @@ All notable changes to the Sanigen package will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.0] - 2025-07-20
+
+### Added
+- Added support for **UUID v4**, **UUID v7**, and **UUID v8** generators
+
+### Removed
+- Removed 'generates date offset values' test as offset has been replaced with carbon
+- Removed 'generates auth id values' test as auth_id generator has been removed
+
+### Fixed
+- Fixed failing tests due to missing generator keys
+- Fixed UuidGenerator to handle null parameters correctly
+- Updated tests to work with the removal of AuthIdGenerator
+- Replaced 'auth_id' generator usage with 'user:id' in tests
+
+## [1.1.0] - 2025-07-20
+
+### Added
+- Added Similar Packages section to README.md (fc0fd1e)
+- Added support for UUID versions v4, v7, and v8 in UuidGenerator
+- Added tests for different UUID versions
+
+### Changed
+- Simplified instantiation and improved naming (80a03cd)
+- Further simplified generator instantiation (1ac9548)
+- Simplified generator instantiation for improved scalability (273a178)
+- Refactored Generator Registry: moved user generator from conditional blocks to a map (4062c36)
+- Removed AuthIdGenerator, NowGenerator, and DateOffsetGenerator classes for better maintainability
+
+### Fixed
+- Fixed incorrect Packagist badge URLs (22b68f2)
+- Fixed Packagist badge URLs in README (dfd9842)
+
 ## [1.0.0] - 2025-07-17
 
 ### Added

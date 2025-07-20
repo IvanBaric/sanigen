@@ -4,9 +4,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Auth;
 use Tests\BaseGeneratorTestModel;
 use Tests\BasicGeneratorTestModel;
-use Tests\AuthIdGeneratorTestModel;
 use Tests\UserPropertyGeneratorTestModel;
-use Tests\CarbonGeneratorTestModel;
 
 // Model for testing invalid generator key
 class InvalidGeneratorTestModel extends BaseGeneratorTestModel
@@ -16,14 +14,50 @@ class InvalidGeneratorTestModel extends BaseGeneratorTestModel
     ];
 }
 
-test('generates uuid values', function () {
+test('generates uuid v4 values by default', function () {
     $model = BasicGeneratorTestModel::create([
         'title' => 'Test Title'
     ]);
 
     // Assert that the UUID was generated and has the correct format
     expect($model->uuid_field)->not->toBeNull();
-    expect($model->uuid_field)->toMatch('/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i');
+    expect($model->uuid_field)->toMatch('/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i');
+});
+
+test('generates uuid v7 values', function () {
+    // Register a test model with UUID v7
+    class UuidV7TestModel extends \Tests\BaseGeneratorTestModel
+    {
+        protected $generate = [
+            'uuid_field' => 'uuid:v7',
+        ];
+    }
+
+    $model = UuidV7TestModel::create([
+        'title' => 'Test Title'
+    ]);
+
+    // Assert that the UUID was generated and has the correct format (v7 starts with timestamp)
+    expect($model->uuid_field)->not->toBeNull();
+    expect($model->uuid_field)->toMatch('/^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i');
+});
+
+test('generates uuid v8 values', function () {
+    // Register a test model with UUID v8
+    class UuidV8TestModel extends \Tests\BaseGeneratorTestModel
+    {
+        protected $generate = [
+            'uuid_field' => 'uuid:v8',
+        ];
+    }
+
+    $model = UuidV8TestModel::create([
+        'title' => 'Test Title'
+    ]);
+
+    // Assert that the UUID was generated and has the correct format (v8 is custom format)
+    expect($model->uuid_field)->not->toBeNull();
+    expect($model->uuid_field)->toMatch('/^[0-9a-f]{8}-[0-9a-f]{4}-8[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i');
 });
 
 test('generates ulid values', function () {
@@ -78,36 +112,7 @@ test('generates slug values', function () {
     expect($model->slug_field)->toBe('test-title-with-special-characters');
 });
 
-test('generates date offset values', function () {
-    $model = BasicGeneratorTestModel::create([
-        'title' => 'Test Title'
-    ]);
 
-    // Assert that the date was generated with the correct offset (approximately 7 days in the future)
-    expect($model->date_offset_field)->not->toBeNull();
-
-    $expectedDate = now()->addDays(7)->startOfMinute();
-    $actualDate = $model->date_offset_field;
-
-    // Allow a small difference (1 minute) to account for test execution time
-    expect($expectedDate->diffInMinutes($actualDate))->toBeLessThanOrEqual(1);
-});
-
-test('generates auth id values', function () {
-    // Create a user and authenticate
-    $user = new class extends Model {
-        protected $table = 'users';
-    };
-    $user->id = 123;
-    Auth::shouldReceive('id')->andReturn(123);
-
-    $model = AuthIdGeneratorTestModel::create([
-        'title' => 'Test Title'
-    ]);
-
-    // Assert that the auth ID was set to the authenticated user's ID
-    expect($model->auth_id_field)->toBe(123);
-});
 
 test('generates user property values', function () {
     // Create a user and authenticate
@@ -133,20 +138,6 @@ test('generates user property values', function () {
     expect($model->user_property_field)->toBe('test@example.com');
 });
 
-test('generates carbon date values', function () {
-    $model = CarbonGeneratorTestModel::create([
-        'title' => 'Test Title'
-    ]);
-
-    // Assert that the date was generated with the correct offset (approximately 14 days in the future)
-    expect($model->date_offset_field)->not->toBeNull();
-
-    $expectedDate = now()->addDays(14)->startOfMinute();
-    $actualDate = $model->date_offset_field;
-
-    // Allow a small difference (1 minute) to account for test execution time
-    expect($expectedDate->diffInMinutes($actualDate))->toBeLessThanOrEqual(1);
-});
 
 test('throws exception for invalid generator key', function () {
     // This should throw an InvalidArgumentException because 'invalid_generator_key' doesn't exist

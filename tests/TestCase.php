@@ -18,7 +18,7 @@ abstract class TestCase extends BaseTestCase
     protected function setUp(): void
     {
         parent::setUp();
-        
+
         $this->setupGeneratorTestTable();
         $this->setupEnabledConfigTestTable();
         $this->setupSanitizerTestTable();
@@ -26,7 +26,7 @@ abstract class TestCase extends BaseTestCase
         // Ensure the package is enabled
         Config::set('sanigen.enabled', true);
     }
-    
+
     /**
      * Set up the table for generator tests
      */
@@ -42,13 +42,11 @@ abstract class TestCase extends BaseTestCase
             $table->string('random_string_field')->nullable();
             $table->string('title')->nullable();
             $table->string('slug_field')->nullable();
-            $table->dateTime('date_offset_field')->nullable();
-            $table->unsignedBigInteger('auth_id_field')->nullable();
             $table->string('user_property_field')->nullable();
             $table->timestamps();
         });
     }
-    
+
     /**
      * Set up the table for enabled config tests
      */
@@ -63,7 +61,7 @@ abstract class TestCase extends BaseTestCase
             $table->timestamps();
         });
     }
-    
+
     /**
      * Set up the table for sanitizer tests
      */

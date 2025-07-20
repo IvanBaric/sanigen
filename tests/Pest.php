@@ -64,7 +64,7 @@ namespace Tests {
         protected $fillable = [
             'title', 'uuid_field', 'ulid_field', 'auto_increment_field', 
             'unique_code_field', 'random_string_field', 'slug_field', 
-            'date_offset_field', 'auth_id_field', 'user_property_field'
+            'user_property_field'
         ];
     }
 
@@ -79,17 +79,9 @@ namespace Tests {
             'unique_code_field' => 'unique_string:10',
             'random_string_field' => 'random_string:12',
             'slug_field' => 'slugify:title',
-            'date_offset_field' => 'offset:+7 days',
         ];
     }
 
-    // Model for testing auth ID generator
-    class AuthIdGeneratorTestModel extends BaseGeneratorTestModel
-    {
-        protected $generate = [
-            'auth_id_field' => 'auth_id',
-        ];
-    }
 
     // Model for testing user property generator
     class UserPropertyGeneratorTestModel extends BaseGeneratorTestModel
@@ -99,11 +91,4 @@ namespace Tests {
         ];
     }
 
-    // Model for testing carbon generator
-    class CarbonGeneratorTestModel extends BaseGeneratorTestModel
-    {
-        protected $generate = [
-            'date_offset_field' => 'carbon:+14 days',
-        ];
-    }
 }

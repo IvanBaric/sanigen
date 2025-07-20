@@ -264,7 +264,10 @@ Sanigen includes several built-in generators:
 | `ulid` | Generates a ULID (sortable identifier) | `"01F8MECHZX3TBDSZ7XR1QKR505"` |
 | `unique_string:8` | Generates a unique random string of specified length (ensures uniqueness by checking the database) | `"a1b2c3d4"` (8 chars) |
 | `user:property` | Uses a property from the authenticated user | `"john@example.com"` (user's email) |
-| `uuid` | Generates a UUID v4 | `"550e8400-e29b-41d4-a716-446655440000"` |
+| `uuid` | Generates a UUID (v4 by default) | `"550e8400-e29b-41d4-a716-446655440000"` |
+| `uuid:v4` | Generates a UUID v4 (random-based) | `"550e8400-e29b-41d4-a716-446655440000"` |
+| `uuid:v7` | Generates a UUID v7 (time-ordered) | `"017f22e2-79b0-7cc3-98c4-dc0c0c07398f"` |
+| `uuid:v8` | Generates a UUID v8 (custom format) | `"017f22e2-79b0-8cc3-98c4-dc0c0c07398f"` |
 
 ### Parameter Passing
 
@@ -280,7 +283,9 @@ protected $generate = [
     'team_id' => 'user:current_team_id', // Current user's team ID
     'author_email' => 'user:email', // Current user's email
     'order' => 'autoincrement',     // Next available number (max + 1)
-    'uuid' => 'uuid',               // UUID v4: "550e8400-e29b-41d4-a716-446655440000"
+    'uuid' => 'uuid',               // UUID v4 (default): "550e8400-e29b-41d4-a716-446655440000"
+    'uuid_v7' => 'uuid:v7',          // UUID v7 (time-ordered): "017f22e2-79b0-7cc3-98c4-dc0c0c07398f"
+    'uuid_v8' => 'uuid:v8',          // UUID v8 (custom format): "017f22e2-79b0-8cc3-98c4-dc0c0c07398f"
     'ulid' => 'ulid'                // ULID: "01F8MECHZX3TBDSZ7XR1QKR505"
 ];
 ```

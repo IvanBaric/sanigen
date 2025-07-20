@@ -2,11 +2,9 @@
 
 namespace IvanBaric\Sanigen\Registries;
 
-use IvanBaric\Sanigen\Generators\AuthIdGenerator;
 use IvanBaric\Sanigen\Generators\AutoIncrementGenerator;
 use IvanBaric\Sanigen\Generators\Contracts\GeneratorContract;
 use IvanBaric\Sanigen\Generators\CarbonGenerator;
-use IvanBaric\Sanigen\Generators\DateOffsetGenerator;
 use IvanBaric\Sanigen\Generators\RandomStringGenerator;
 use IvanBaric\Sanigen\Generators\UniqueCodeGenerator;
 use IvanBaric\Sanigen\Generators\UniqueStringGenerator;
@@ -35,7 +33,7 @@ class GeneratorRegistry
         'slugify' => SlugGenerator::class,
         'carbon' => CarbonGenerator::class,
         'offset' => CarbonGenerator::class, // Kept for backward compatibility
-        'auth_id' => AuthIdGenerator::class,
+        'auth_id' => UserPropertyGenerator::class, // Map auth_id to UserPropertyGenerator for backward compatibility
         'user' => UserPropertyGenerator::class,
     ];
 
