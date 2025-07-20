@@ -54,14 +54,13 @@ class GeneratorRegistry
             throw new \InvalidArgumentException("Generator with key '{$alias}' does not exist. Check if you have specified the correct generator key.");
         }
 
-        return match ($alias) {
-            'unique_code' => new $class((int) $param ?: 8),
-            'random_string' => new $class((int) $param ?: 8),
-            'slugify' => new $class($param ?: 'title'),
-            'offset' => new $class($param ?? '+7 days'),
-            'user' => new $class($param ?? 'id'),
-            default => app($class),
-        };
+        // Pass the parameter to the generator constructor if provided
+        if ($param !== null) {
+            return new $class($param);
+        }
+
+        // If no parameter is provided, let the generator use its default
+        return new $class();
     }
 
     /**
