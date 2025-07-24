@@ -5,6 +5,51 @@ All notable changes to the Sanigen package will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.0] - 2025-07-24
+
+### Added
+- Added **`sanigen:resanitize` console command** for applying sanitization rules to existing database records
+  - Supports configurable chunk processing to prevent memory overflow
+  - Includes safety warnings and confirmation prompts
+  - Uses database transactions for data integrity
+  - Provides progress bar and detailed reporting
+  - Supports `--chunk` and `--force` options
+- Added **comprehensive XSS protection** with enhanced `no_js` sanitizer
+  - Removes dangerous HTML tags (script, iframe, object, embed, svg, applet, meta, base, style)
+  - Handles nested HTML entity decoding to prevent hidden malicious code
+  - Removes JavaScript event handlers (onclick, onload, etc.)
+  - Removes "javascript:" protocol from attributes
+  - Removes JavaScript functions (alert, eval, atob)
+  - Configurable input length limits for performance
+  - Base64 encoded attack protection
+- Added **manual sanitization capability** with `sanitizeAttributes()` method
+  - Returns boolean indicating if any attributes were modified
+  - Can be called manually on model instances
+  - Used internally by the resanitize command
+- Added **Spatie Translatable package support**
+  - Automatically detects and sanitizes translatable array fields
+  - Applies sanitization rules to each translation individually
+  - Maintains translation structure while ensuring security
+- Added **performance testing capabilities**
+  - Configurable test parameters via environment variables
+  - Memory usage and execution time metrics
+  - Support for testing large datasets with chunked processing
+  - MySQL database switching for realistic performance testing
+
+### Enhanced
+- Enhanced **error handling and logging** in sanitization process
+  - Better exception handling with detailed error messages
+  - Logging support for sanitization failures
+  - Graceful degradation when sanitizers fail
+- Enhanced **HasSanitization trait** with improved array handling
+  - Better support for complex data structures
+  - Improved value change detection
+  - Enhanced documentation and code comments
+
+### Fixed
+- Fixed sanitization of array values (translatable fields) to handle each element individually
+- Fixed error handling to prevent sanitization failures from breaking model operations
+
 ## [1.3.0] - 2025-07-22
 
 ### Added
