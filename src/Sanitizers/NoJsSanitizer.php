@@ -5,9 +5,9 @@ namespace IvanBaric\Sanigen\Sanitizers;
 use IvanBaric\Sanigen\Sanitizers\Contracts\Sanitizer;
 
 /**
- * Sanitizes a string to prevent Cross-Site Scripting (XSS) attacks.
+ * Sanitizes a string to prevent JavaScript execution and Cross-Site Scripting (XSS) attacks.
  * 
- * This sanitizer implements a comprehensive approach to XSS prevention by:
+ * This sanitizer implements a comprehensive approach to JavaScript removal by:
  * 1. Removing dangerous HTML tags (script, iframe, object, embed)
  * 2. Decoding HTML entities to prevent hidden malicious code
  * 3. Removing JavaScript event handlers (onclick, onload, etc.)
@@ -24,13 +24,13 @@ use IvanBaric\Sanigen\Sanitizers\Contracts\Sanitizer;
  * - Allowing limited HTML while removing potentially dangerous elements
  * - Creating a strong security layer for text input
  */
-final class XssSanitizer implements Sanitizer
+final class NoJsSanitizer implements Sanitizer
 {
     /**
-     * Apply XSS protection to the input string.
+     * Apply JavaScript removal protection to the input string.
      *
      * @param string $value The input string to sanitize
-     * @return string The sanitized string with XSS vectors removed
+     * @return string The sanitized string with JavaScript and XSS vectors removed
      */
     public function apply(string $value): string
     {
@@ -88,7 +88,7 @@ final class XssSanitizer implements Sanitizer
         
         // 8. Remove JavaScript atob() function calls - simplified pattern
         $value = preg_replace('/atob\s*\([^)]*\)/is', '', $value) ?? $value;
-
+        
         // 9. Keep only allowed HTML tags from configuration
         $allowed = config('sanigen.allowed_html_tags', '');
         $value = strip_tags($value, $allowed);
@@ -97,4 +97,3 @@ final class XssSanitizer implements Sanitizer
         return preg_replace('/\s+/', ' ', trim($value)) ?: '';
     }
 }
-

@@ -25,7 +25,7 @@ use IvanBaric\Sanigen\Sanitizers\TrimSanitizer;
 use IvanBaric\Sanigen\Sanitizers\UcfirstSanitizer;
 use IvanBaric\Sanigen\Sanitizers\UpperSanitizer;
 use IvanBaric\Sanigen\Sanitizers\UrlSanitizer;
-use IvanBaric\Sanigen\Sanitizers\XssSanitizer;
+use IvanBaric\Sanigen\Sanitizers\NoJsSanitizer;
 
 /**
  * Registry for text sanitizers.
@@ -51,7 +51,7 @@ class SanitizerRegistry
         'escape'            => EscapeSanitizer::class,
         'remove_newlines'   => RemoveNewlinesSanitizer::class,
         'no_html'           => NoHtmlSanitizer::class,
-        'xss'               => XssSanitizer::class,
+        'no_js'             => NoJsSanitizer::class,
         'email'             => EmailSanitizer::class,
         'phone'             => PhoneSanitizer::class,
         'url'               => UrlSanitizer::class,
@@ -69,6 +69,7 @@ class SanitizerRegistry
      *
      * @param string $key The sanitizer key or configuration alias
      * @return Sanitizer|null The resolved sanitizer or null if not found
+     * @throws \InvalidArgumentException When a non-existent sanitizer is requested in 'throw' mode
      */
     public static function resolve(string $key): ?Sanitizer
     {
@@ -104,6 +105,11 @@ class SanitizerRegistry
 
         // Standard single sanitizer
         $class = static::$map[$key] ?? null;
+        
+        // Handle non-existent sanitizers by throwing an exception
+        if ($class === null) {
+            throw new \InvalidArgumentException("Sanitizer '{$key}' does not exist.");
+        }
 
         return $class ? app($class) : null;
     }

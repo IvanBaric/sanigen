@@ -46,7 +46,7 @@ class SanitizerTestModel extends Model
         'email_field' => 'email',
         'emoji_remove_field' => 'emoji_remove',
         'escape_field' => 'escape',
-        'html_special_chars_field' => 'html_special_chars',
+        'html_special_chars_field' => 'htmlspecialchars',
         'json_escape_field' => 'json_escape',
         'lower_field' => 'lower',
         'no_html_field' => 'no_html',
@@ -60,6 +60,6 @@ class SanitizerTestModel extends Model
         'ucfirst_field' => 'ucfirst',
         'upper_field' => 'upper',
         'url_field' => 'url',
-        'xss_field' => 'xss'
+        'xss_field' => 'no_js'
     ];
 }

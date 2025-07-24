@@ -22,6 +22,8 @@ abstract class TestCase extends BaseTestCase
         $this->setupGeneratorTestTable();
         $this->setupEnabledConfigTestTable();
         $this->setupSanitizerTestTable();
+        $this->setupPerformanceTestTable();
+        $this->setupTranslatableTestTable();
 
         // Ensure the package is enabled
         Config::set('sanigen.enabled', true);
@@ -93,6 +95,107 @@ abstract class TestCase extends BaseTestCase
             $table->string('upper_field')->nullable();
             $table->string('url_field')->nullable();
             $table->string('xss_field')->nullable();
+            $table->timestamps();
+        });
+    }
+    
+    /**
+     * Set up the table for performance tests
+     */
+    protected function setupPerformanceTestTable(): void
+    {
+        // Create a test table for performance tests with many columns
+        $this->app['db']->connection()->getSchemaBuilder()->create('performance_test_models', function ($table) {
+            $table->id();
+            
+            // Text transformation fields
+            $table->text('trim_field_1')->nullable();
+            $table->text('trim_field_2')->nullable();
+            $table->text('trim_field_3')->nullable();
+            $table->text('lower_field_1')->nullable();
+            $table->text('lower_field_2')->nullable();
+            $table->text('lower_field_3')->nullable();
+            $table->text('upper_field_1')->nullable();
+            $table->text('upper_field_2')->nullable();
+            $table->text('upper_field_3')->nullable();
+            $table->text('ucfirst_field_1')->nullable();
+            $table->text('ucfirst_field_2')->nullable();
+            $table->text('ucfirst_field_3')->nullable();
+            $table->text('single_space_field_1')->nullable();
+            $table->text('single_space_field_2')->nullable();
+            $table->text('single_space_field_3')->nullable();
+            $table->text('remove_newlines_field_1')->nullable();
+            $table->text('remove_newlines_field_2')->nullable();
+            $table->text('remove_newlines_field_3')->nullable();
+            
+            // Content filtering fields
+            $table->text('alpha_only_field_1')->nullable();
+            $table->text('alpha_only_field_2')->nullable();
+            $table->text('alphanumeric_only_field_1')->nullable();
+            $table->text('alphanumeric_only_field_2')->nullable();
+            $table->text('alpha_dash_field_1')->nullable();
+            $table->text('alpha_dash_field_2')->nullable();
+            $table->text('numeric_only_field_1')->nullable();
+            $table->text('numeric_only_field_2')->nullable();
+            $table->text('decimal_only_field_1')->nullable();
+            $table->text('decimal_only_field_2')->nullable();
+            $table->text('ascii_only_field_1')->nullable();
+            $table->text('ascii_only_field_2')->nullable();
+            $table->text('emoji_remove_field_1')->nullable();
+            $table->text('emoji_remove_field_2')->nullable();
+            
+            // Security sanitizer fields
+            $table->text('strip_tags_field_1')->nullable();
+            $table->text('strip_tags_field_2')->nullable();
+            $table->text('no_html_field_1')->nullable();
+            $table->text('no_html_field_2')->nullable();
+            $table->text('xss_field_1')->nullable();
+            $table->text('xss_field_2')->nullable();
+            $table->text('escape_field_1')->nullable();
+            $table->text('escape_field_2')->nullable();
+            $table->text('html_special_chars_field_1')->nullable();
+            $table->text('html_special_chars_field_2')->nullable();
+            $table->text('json_escape_field_1')->nullable();
+            $table->text('json_escape_field_2')->nullable();
+            
+            // Format-specific sanitizer fields
+            $table->text('email_field_1')->nullable();
+            $table->text('email_field_2')->nullable();
+            $table->text('phone_field_1')->nullable();
+            $table->text('phone_field_2')->nullable();
+            $table->text('url_field_1')->nullable();
+            $table->text('url_field_2')->nullable();
+            $table->text('slug_field_1')->nullable();
+            $table->text('slug_field_2')->nullable();
+            
+            // Combined sanitization fields (using aliases)
+            $table->text('text_clean_field_1')->nullable();
+            $table->text('text_clean_field_2')->nullable();
+            $table->text('text_safe_field_1')->nullable();
+            $table->text('text_safe_field_2')->nullable();
+            $table->text('text_secure_field_1')->nullable();
+            $table->text('text_secure_field_2')->nullable();
+            $table->text('text_title_field_1')->nullable();
+            $table->text('text_title_field_2')->nullable();
+            $table->text('email_clean_field_1')->nullable();
+            $table->text('email_clean_field_2')->nullable();
+            $table->text('url_secure_field_1')->nullable();
+            $table->text('url_secure_field_2')->nullable();
+            
+            $table->timestamps();
+        });
+    }
+    
+    /**
+     * Set up the table for translatable field tests
+     */
+    protected function setupTranslatableTestTable(): void
+    {
+        // Create a test table for translatable fields
+        $this->app['db']->connection()->getSchemaBuilder()->create('translatable_test_models', function ($table) {
+            $table->id();
+            $table->json('name')->nullable();
+            $table->json('description')->nullable();
             $table->timestamps();
         });
     }

@@ -92,7 +92,7 @@ class Post extends Model
     // Define sanitization rules for attributes
     protected $sanitize = [
         'title' => 'text:title',
-        'content' => 'text:safe',
+        'content' => 'text:secure',
         'email' => 'email:clean',
     ];
 }
@@ -128,13 +128,11 @@ Define sanitization rules in your model using the `$sanitize` property:
 protected $sanitize = [
     'attribute_name' => 'sanitizer_name',
     'another_attribute' => 'sanitizer1|sanitizer2|sanitizer3',
-    'complex_attribute' => 'text:safe', // Using a predefined alias
+    'complex_attribute' => 'text:secure', // Using a predefined alias
 ];
 ```
 
-Sanitization is applied:
-- When creating a model (if using Sanigen trait)
-- When updating a model (always)
+Sanitization is automatically applied when creating a model (if using the Sanigen trait) and when updating a model (always).
 
 ### Available Sanitizers
 
@@ -154,6 +152,7 @@ Sanigen includes many built-in sanitizers for common use cases:
 | `json_escape` | Escapes characters for JSON                  | Escapes quotes, backslashes, etc.          |
 | `lower` | Converts to lowercase                        | `"Hello"` → `"hello"`                      |
 | `no_html` | Removes all HTML tags                        | `"<p>Hello</p>"` → `"Hello"`               |
+| `no_js` | JavaScript removal and XSS protection        | Removes scripts, event handlers, alert() functions, etc. |
 | `numeric_only` | Keeps only digits                            | `"Price: $123.45"` → `"12345"`             |
 | `phone` | Sanitizes phone numbers (E.164)                   | `"(123) 456-7890"` → `"+1234567890"`       |
 | `remove_newlines` | Removes all line breaks                      | Converts multi-line text to single line    |
@@ -164,7 +163,6 @@ Sanigen includes many built-in sanitizers for common use cases:
 | `ucfirst` | Capitalizes first character                  | `"hello"` → `"Hello"`                      |
 | `upper` | Converts to uppercase                        | `"hello"` → `"HELLO"`                      |
 | `url` | Ensures URLs have a protocol                 | `"example.com"` → `"https://example.com"`  |
-| `xss` | Comprehensive XSS protection                 | Removes scripts, event handlers, etc.      |
 
 ### Sanitization Aliases
 
@@ -175,13 +173,18 @@ The package comes with many predefined aliases in the configuration:
 ```php
 // Example aliases from config/sanigen.php
 'sanitization_aliases' => [
-    'text:clean'      => 'trim|strip_tags|remove_newlines|single_space',
-    'text:safe'       => 'trim|single_space|xss',
-    'text:secure'     => 'trim|single_space|no_html|strip_tags|xss',
-    'text:title'      => 'trim|single_space|no_html|strip_tags|xss|lower|ucfirst',
+    'text:clean'      => 'strip_tags|remove_newlines|trim|single_space',
+    'text:secure'     => 'no_html|no_js|emoji_remove|trim|single_space',
+    'text:title'      => 'no_html|no_js|emoji_remove|remove_newlines|trim|single_space|lower|ucfirst',
     'email:clean'     => 'trim|lower|email',
-    'url:secure'      => 'trim|remove_newlines|xss|url',
-    // ... many more
+    'url:clean'       => 'trim|remove_newlines|no_js',
+    'url:secure'      => 'trim|remove_newlines|no_js|url',
+    'number:integer'  => 'trim|numeric_only',
+    'number:decimal'  => 'trim|decimal_only',
+    'phone:clean'     => 'trim|phone',
+    'text:alpha_dash' => 'trim|lower|alpha_dash',
+    'json:escape'     => 'trim|json_escape',
+    // ... and more
 ],
 ```
 
@@ -190,7 +193,7 @@ Use these aliases in your models:
 ```php
 protected $sanitize = [
     'title' => 'text:title',
-    'content' => 'text:safe',
+    'content' => 'text:secure',
     'email' => 'email:clean',
     'website' => 'url:secure',
 ];
@@ -248,8 +251,6 @@ protected $generate = [
 ```
 
 Generators are applied only when creating a model, and only if the attribute is empty.
-
-> **Note:** If you specify a generator key that doesn't exist, an `InvalidArgumentException` will be thrown with a message indicating the invalid generator key. This helps you quickly identify mistyped generator keys.
 
 ### Available Generators
 
@@ -359,7 +360,7 @@ Define your own aliases in the configuration:
     // Custom aliases for your application
     'username' => 'trim|lower|alphanumeric_only',
     'product:sku' => 'trim|upper|ascii_only',
-    'address' => 'trim|single_space|xss|htmlspecialchars',
+    'address' => 'trim|single_space|no_js|htmlspecialchars',
 ],
 ```
 
@@ -375,7 +376,7 @@ protected $sanitize = [
 
 ### Allowed HTML Tags
 
-Configure which HTML tags are allowed when using sanitizers like `strip_tags` or `xss`:
+Configure which HTML tags are allowed when using sanitizers like `strip_tags` or `no_js`:
 
 ```php
 // In config/sanigen.php
@@ -427,6 +428,114 @@ protected $generate = [
 
 ## Advanced Usage
 
+### Resanitizing Existing Records
+
+If you need to apply sanitization rules to existing records in your database (for example, after adding new sanitization rules or fixing issues with existing data), you can use the `sanigen:resanitize` command:
+
+```bash
+php artisan sanigen:resanitize "App\Models\Post" --chunk=200
+```
+
+This command:
+
+1. Takes a model class name as an argument
+2. Processes records in chunks to prevent memory overflow (default chunk size is 200)
+3. Applies all sanitization rules defined in the model's `$sanitize` property
+4. Uses database transactions for safety
+5. Uses `saveQuietly()` to avoid triggering model events that might cause infinite loops
+
+**Important:** The command will display a warning and ask for confirmation before proceeding, as it will modify existing records in your database. It's strongly recommended to create a backup of your database before running this command.
+
+#### Options
+
+- `--chunk=<size>`: Set the number of records to process at once (default: 200)
+- `--force`: Skip the confirmation prompt
+
+#### Example
+
+```bash
+# Process all Post models with a chunk size of 200
+php artisan sanigen:resanitize "App\Models\Post" --chunk=200
+
+# Process all User models with the default chunk size
+php artisan sanigen:resanitize "App\Models\User"
+
+# Skip confirmation prompt
+php artisan sanigen:resanitize "App\Models\Post" --force
+```
+
+#### Choosing an Optimal Chunk Size
+
+When processing large datasets with many attributes, choosing an appropriate chunk size is important to prevent memory issues:
+
+- **Too large**: Processing too many records at once can lead to memory exhaustion, especially with models that have many attributes or complex sanitization rules.
+- **Too small**: Very small chunk sizes may result in slower overall processing due to the overhead of creating many small transactions.
+
+**Best practices:**
+- For models with many attributes or complex sanitization (like JavaScript removal), use smaller chunk sizes (100-250)
+- For simpler models with few attributes, larger chunk sizes (500-1000) may be more efficient
+- If you encounter memory issues, reduce the chunk size
+- For very large tables, ensure the chunk size is significantly smaller than the total number of records
+- Avoid using a chunk size equal to the total number of records, as this can lead to memory exhaustion
+
+### Performance Testing
+
+The package includes a performance test that can be used to evaluate the performance of the sanitization process with a large number of records and many attributes per record. This is particularly useful for testing the `sanigen:resanitize` command on large datasets.
+
+#### Running the Performance Test
+
+To run the performance test:
+
+```bash
+# Run with default settings (10,000 records)
+php artisan test --filter=PerformanceTest
+
+# Run with custom configuration using environment variables
+PERFORMANCE_TEST_RECORDS=5000 PERFORMANCE_TEST_BATCH_SIZE=1000 PERFORMANCE_TEST_CHUNK_SIZE=1000 php artisan test --filter=PerformanceTest
+```
+
+#### Configuration Options
+
+The performance test can be configured using environment variables:
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `PERFORMANCE_TEST_RECORDS` | Number of records to generate | 500 |
+| `PERFORMANCE_TEST_BATCH_SIZE` | Number of records to insert in each batch | 500 |
+| `PERFORMANCE_TEST_CHUNK_SIZE` | Number of records to process in each chunk during sanitization | Auto-calculated (half of total records, max 250) |
+| `PERFORMANCE_TEST_CLEANUP` | Whether to clean up (delete) test data after the test | false |
+
+> **Important Note on Chunk Size:** The test automatically calculates an optimal chunk size to prevent memory issues. For best performance, ensure the chunk size is smaller than the total number of records. When processing large datasets with many attributes, using a chunk size equal to the total records can lead to memory exhaustion. The default calculation (half of total records, maximum 250) works well for most scenarios.
+
+#### Test Process
+
+The performance test:
+
+1. Creates a test model with dozens of attributes using different sanitizers
+2. Generates the specified number of records with unsanitized data
+3. Runs the `sanigen:resanitize` command on these records
+4. Measures and reports performance metrics
+
+#### Performance Metrics
+
+The test collects and reports the following metrics:
+
+- **Generation Time**: Time taken to generate the test records
+- **Sanitization Time**: Time taken to sanitize all records
+- **Total Time**: Total execution time
+- **Memory Usage**: Memory usage before, after generation, and after sanitization
+- **Memory Increase**: Memory increase during generation and sanitization
+
+#### Interpreting Results
+
+The performance metrics can help you:
+
+- Evaluate the performance impact of sanitization on your application
+- Determine optimal chunk sizes for processing large datasets
+- Identify potential memory issues with large datasets
+- Compare performance across different environments or configurations
+
+For large production databases, it's recommended to start with a small number of records and gradually increase to find the optimal configuration for your specific environment.
 
 ### Combining Generators and Sanitizers
 
@@ -466,6 +575,59 @@ You can manually sanitize attributes:
 ```php
 $model->sanitizeAttributes();
 ```
+
+### Support for Spatie Translatable Fields
+
+Sanigen supports [Spatie's Laravel Translatable](https://spatie.be/docs/laravel-translatable/v6/introduction) package, which allows you to store translations for your model's attributes. When using Spatie Translatable, translations are stored as arrays (e.g., `$name['en'] = "<script>alert("xss")</script>smart"`).
+
+Sanigen will automatically detect and sanitize these array values, applying the sanitization rules to each translation individually:
+
+```php
+use Illuminate\Database\Eloquent\Model;
+use IvanBaric\Sanigen\Traits\Sanigen;
+use Spatie\Translatable\HasTranslations;
+
+class Product extends Model
+{
+    use Sanigen;
+    use HasTranslations;
+    
+    public $translatable = [
+        'name',
+        'description',
+    ];
+    
+    protected $sanitize = [
+        'name' => 'no_js|trim',
+        'description' => 'text:secure',
+    ];
+}
+```
+
+When you set translations with potentially unsafe content:
+
+```php
+$product = new Product();
+$product->setTranslation('name', 'hr', '<script>alert("xss")</script>smart');
+$product->setTranslation('name', 'en', 'Smart <script>alert("xss")</script> Product');
+$product->save();
+
+// Or set all translations at once:
+$product->name = [
+    'hr' => '<script>alert("xss")</script>smart',
+    'en' => 'Smart <script>alert("xss")</script> Product'
+];
+$product->save();
+```
+
+Sanigen will sanitize each translation individually:
+
+```php
+echo $product->getTranslation('name', 'hr'); // Outputs: "smart"
+echo $product->getTranslation('name', 'en'); // Outputs: "Smart  Product"
+```
+
+This ensures that all your translatable content is properly sanitized, regardless of the language.
 
 ### Combining with Laravel Validation
 

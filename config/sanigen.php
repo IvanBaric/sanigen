@@ -32,46 +32,23 @@ return [
     */
     'sanitization_aliases' => [
         // Text Processing
-        'text:clean'      => 'trim|strip_tags|remove_newlines|single_space',  // Basic text cleaning
-        'text:safe'       => 'trim|single_space|xss',                         // Safe text with XSS protection
-        'text:secure'     => 'trim|single_space|no_html|strip_tags|xss',      // Secure text with all protections
-        'text:strict'     => 'xss|strip_tags|no_html|trim|remove_newlines|single_space', // Maximum security
-        'text:no_emoji'   => 'emoji_remove|xss|strip_tags|no_html|trim|remove_newlines|single_space', // No emojis
-        'text:alnum'      => 'trim|lower|alphanumeric_only',                  // Letters and numbers only
-        'text:alpha'      => 'trim|alpha_only',                               // Letters only
-        'ascii:clean'     => 'trim|ascii_only',                               // ASCII characters only
-
-        // Title Formatting
-        'text:title'      => 'trim|single_space|no_html|strip_tags|xss|lower|ucfirst', // Clean, safe title with first letter capitalized
-
-        // Identifiers
-        'text:identifier' => 'trim|lower|strip_tags',                         // Clean identifier
+        'text:title'      => 'no_html|no_js|emoji_remove|remove_newlines|trim|single_space|lower|ucfirst', // Clean, safe title with first letter capitalized
+        'text:clean'      => 'strip_tags|remove_newlines|trim|single_space',  // Basic text cleaning
+        'text:secure'     => 'no_html|no_js|emoji_remove|trim|single_space',      // Secure text with all protections
 
         // Email Addresses
         'email:clean'     => 'trim|lower|email',                              // Normalized email address
 
         // URLs
-        'url:clean'       => 'trim|remove_newlines|xss',                      // Basic URL cleaning
-        'url:secure'      => 'trim|remove_newlines|xss|url',                  // URL with protocol enforcement
+        'url:clean'       => 'trim|remove_newlines|no_js',                      // Basic URL cleaning
+        'url:secure'      => 'trim|remove_newlines|no_js|url',                  // URL with protocol enforcement
 
         // Numbers
         'number:integer'  => 'trim|numeric_only',                             // Integer values
         'number:decimal'  => 'trim|decimal_only',                             // Decimal values (e.g., "1,234.56€" → "1234.56")
 
-        // Case Transformations
-        'case:lower'      => 'trim|lower',                                    // Lowercase text
-        'case:upper'      => 'trim|upper',                                    // Uppercase text
-        'case:ucfirst'    => 'trim|ucfirst',                                  // First letter capitalized
-
-        // HTML Handling
-        'html:escape'     => 'trim|escape',                                   // HTML-escaped text
-        'html:entities'   => 'trim|htmlspecialchars',                         // Convert special characters to HTML entities
-
         // Phone Numbers
         'phone:clean'     => 'trim|phone',                                    // Normalized phone number
-
-        // Slugs
-        'slug:clean'      => 'trim|strip_tags|slug',                          // URL-friendly slug
 
         // Special Character Sets
         'text:alpha_dash' => 'trim|lower|alpha_dash',                         // Letters, numbers, hyphens, underscores
@@ -97,7 +74,7 @@ return [
     |--------------------------------------------------------------------------
     |
     | This list defines which HTML tags are allowed to remain in sanitized content
-    | when using sanitizers like XssSanitizer or StripTagsSanitizer.
+    | when using sanitizers like NoJsSanitizer or StripTagsSanitizer.
     |
     | All other HTML tags will be removed, providing a basic level of safety
     | while still allowing some formatting.
@@ -115,6 +92,7 @@ return [
     |
     */
     'encoding' => 'UTF-8',
+    
 
     /*
     |--------------------------------------------------------------------------

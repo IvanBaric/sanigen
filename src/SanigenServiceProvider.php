@@ -3,6 +3,7 @@
 namespace IvanBaric\Sanigen;
 
 use Illuminate\Support\ServiceProvider;
+use IvanBaric\Sanigen\Console\Commands\ResanitizeCommand;
 
 /**
  * Service provider for the Sanigen Model Tools package.
@@ -26,6 +27,13 @@ class SanigenServiceProvider extends ServiceProvider
         $this->publishes([
             __DIR__ . '/../config/sanigen.php' => config_path('sanigen.php'),
         ], 'config');
+        
+        // Register the commands
+        if ($this->app->runningInConsole()) {
+            $this->commands([
+                ResanitizeCommand::class,
+            ]);
+        }
     }
 
     /**

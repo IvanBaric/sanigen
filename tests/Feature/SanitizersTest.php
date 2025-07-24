@@ -80,7 +80,7 @@ test('sanitizes html special chars values', function () {
     $model->save();
     
     // Assert that HTML special characters are converted
-    expect($model->html_special_chars_field)->toBe('<script>alert("XSS")</script>');
+    expect($model->html_special_chars_field)->toBe('&lt;script&gt;alert(&quot;XSS&quot;)&lt;/script&gt;');
 });
 
 test('sanitizes json escape values', function () {
@@ -203,12 +203,63 @@ test('sanitizes url values', function () {
     expect($model->url_field)->toBe('http://example.com/path with spaces');
 });
 
-test('sanitizes xss values', function () {
+test('sanitizes no_js values', function () {
     $model = new SanitizerTestModel();
     $model->xss_field = '<script>alert("XSS")</script><img src="x" onerror="alert(\'XSS\')">';
     $model->save();
     
-    // Assert that XSS attacks are neutralized
+    // Assert that JavaScript and XSS attacks are neutralized
     expect($model->xss_field)->not->toContain('<script>');
     expect($model->xss_field)->not->toContain('onerror=');
+});
+
+test('sanitizes standalone alert functions with double quotes', function () {
+    $model = new SanitizerTestModel();
+    $model->xss_field = 'Some text alert("XSS attack") more text';
+    $model->save();
+    
+    // Assert that alert function with double quotes is completely removed
+    expect($model->xss_field)->toBe('Some text more text');
+});
+
+test('sanitizes standalone alert functions with single quotes', function () {
+    $model = new SanitizerTestModel();
+    $model->xss_field = 'Some text alert(\'XSS attack\') more text';
+    $model->save();
+    
+    // Assert that alert function with single quotes is completely removed
+    expect($model->xss_field)->toBe('Some text more text');
+});
+
+test('sanitizes standalone alert functions without quotes', function () {
+    $model = new SanitizerTestModel();
+    $model->xss_field = 'Some text alert(123) more text';
+    $model->save();
+    
+    // Assert that alert function without quotes is completely removed
+    expect($model->xss_field)->toBe('Some text more text');
+});
+
+test('sanitizes alert functions with whitespace variations', function () {
+    $model = new SanitizerTestModel();
+    $model->xss_field = 'alert ( "XSS" ) and alert(  \'XSS\'  )';
+    $model->save();
+    
+    // Assert that alert functions with various whitespace are completely removed
+    expect($model->xss_field)->toBe('and');
+});
+
+test('throws exception when non-existent sanitizer is requested', function () {
+    // Create a model with a non-existent sanitizer
+    $model = new class extends SanitizerTestModel {
+        protected $sanitize = [
+            'xss_field' => 'non_existent_sanitizer'
+        ];
+    };
+    
+    // Expect an exception when trying to sanitize
+    expect(function() use ($model) {
+        $model->xss_field = 'test';
+        $model->save();
+    })->toThrow(\InvalidArgumentException::class, "Sanitizer 'non_existent_sanitizer' does not exist.");
 });
