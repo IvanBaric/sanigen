@@ -17,6 +17,19 @@ use IvanBaric\Sanigen\Registries\SanitizerRegistry;
  */
 trait HasSanitization
 {
+    /**
+     * Numeric cast types that cannot accept empty strings.
+     *
+     * @var array<int, string>
+     */
+    protected array $sanigenNumericCastTypes = [
+        'int',
+        'integer',
+        'real',
+        'float',
+        'double',
+        'decimal',
+    ];
 
     /**
      * Sanitize a single attribute value based on defined rules.
@@ -78,7 +91,12 @@ trait HasSanitization
                     $stringValue = $sanitizer->apply($stringValue);
                 }
             }
-            
+
+            // Avoid decimal / numeric cast exceptions caused by empty string values.
+            if ($stringValue === '' && $this->hasSanigenNumericCast($key)) {
+                return null;
+            }
+
             return $stringValue;
         } catch (\InvalidArgumentException $e) {
             // Re-throw InvalidArgumentException for non-existent sanitizers
@@ -114,7 +132,16 @@ trait HasSanitization
         $updated = false;
         
         foreach ($this->sanitize as $attribute => $rules) {
-            $originalValue = $this->{$attribute};
+            $usedRawFallback = false;
+
+            try {
+                $originalValue = $this->{$attribute};
+            } catch (\Throwable $e) {
+                // Some invalid legacy values can fail during cast access (e.g. malformed decimal strings).
+                // Fallback to raw value so resanitize can recover and persist a corrected value.
+                $originalValue = $this->getRawOriginal($attribute);
+                $usedRawFallback = true;
+            }
             
             // Skip null values
             if ($originalValue === null) {
@@ -127,11 +154,35 @@ trait HasSanitization
             // Only update if the value has changed
             if ($sanitizedValue !== $originalValue) {
                 $this->{$attribute} = $sanitizedValue;
+
+                // Prevent dirty-check cast failures when the original snapshot contains invalid legacy data.
+                if ($usedRawFallback) {
+                    $this->original[$attribute] = null;
+                }
+
                 $updated = true;
             }
         }
         
         return $updated;
+    }
+
+    /**
+     * Determine whether the given attribute has a numeric cast.
+     *
+     * @param string $key
+     * @return bool
+     */
+    protected function hasSanigenNumericCast(string $key): bool
+    {
+        $cast = $this->getCasts()[$key] ?? null;
+        if (!is_string($cast) || $cast === '') {
+            return false;
+        }
+
+        $castType = strtolower(strtok($cast, ':'));
+
+        return in_array($castType, $this->sanigenNumericCastTypes, true);
     }
 
     /**

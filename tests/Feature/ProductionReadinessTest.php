@@ -1,5 +1,6 @@
 <?php
 
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Log;
 use IvanBaric\Sanigen\Registries\SanitizerRegistry;
@@ -148,4 +149,42 @@ test('no js sanitizer caps very large payloads to avoid pathological input', fun
 
     expect($result)->not->toContain('<script>');
     expect(strlen($result))->toBeLessThanOrEqual(128);
+});
+
+test('sanitize attributes recovers malformed decimal strings from raw database writes', function () {
+    $modelClass = new class extends SanitizerTestModel {
+        protected $casts = [
+            'decimal_only_field' => 'decimal:2',
+        ];
+    };
+
+    DB::table('sanitizer_test_models')->insert([
+        'decimal_only_field' => '1.234.56',
+        'created_at' => now(),
+        'updated_at' => now(),
+    ]);
+
+    $record = $modelClass::query()->firstOrFail();
+
+    expect($record->sanitizeAttributes())->toBeTrue();
+    $record->saveQuietly();
+    $record->refresh();
+
+    expect($record->getRawOriginal('decimal_only_field'))->toBe('1234.56');
+    expect($record->decimal_only_field)->toBe('1234.56');
+});
+
+test('empty sanitized numeric values become null for numeric casts', function () {
+    $model = new class extends SanitizerTestModel {
+        protected $casts = [
+            'decimal_only_field' => 'decimal:2',
+        ];
+    };
+
+    $model->decimal_only_field = 'N/A';
+    $model->save();
+    $model->refresh();
+
+    expect($model->getRawOriginal('decimal_only_field'))->toBeNull();
+    expect($model->decimal_only_field)->toBeNull();
 });
