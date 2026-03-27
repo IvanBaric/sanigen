@@ -29,11 +29,30 @@ final class UrlSanitizer implements Sanitizer
      */
     public function apply(string $value): string
     {
-        // Force HTTPS protocol if no protocol is specified
-        if (!preg_match('/^https?:\/\//i', $value)) {
-            return 'https://' . ltrim($value, '/');
+        $value = trim($value);
+
+        if ($value === '') {
+            return '';
         }
 
-        return $value;
+        // Preserve existing safe schemes and reject explicitly dangerous ones.
+        if (preg_match('/^[a-z][a-z0-9+\-.]*:/i', $value)) {
+            if (preg_match('/^https?:\/\//i', $value)) {
+                return $value;
+            }
+
+            if (preg_match('/^(?:javascript|data|vbscript):/i', $value)) {
+                return '';
+            }
+
+            return $value;
+        }
+
+        if (str_starts_with($value, '//')) {
+            return 'https:' . $value;
+        }
+
+        // Force HTTPS protocol if no protocol is specified
+        return 'https://' . ltrim($value, '/');
     }
 }

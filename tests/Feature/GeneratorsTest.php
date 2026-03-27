@@ -182,6 +182,101 @@ test('generates slug values with uuid suffix', function () {
     expect($model2->slug_field)->toMatch('/^test-title-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i');
 });
 
+test('does not regenerate slug on update by default', function () {
+    $model = BasicGeneratorTestModel::create([
+        'title' => 'Original Title',
+    ]);
+
+    $originalSlug = $model->slug_field;
+
+    $model->title = 'Updated Title';
+    $model->save();
+    $model->refresh();
+
+    expect($model->slug_field)->toBe($originalSlug);
+});
+
+test('regenerates slug on update when slug_updates_on_save is enabled', function () {
+    config(['sanigen.generator_settings.slugify.slug_updates_on_save' => true]);
+
+    $model = BasicGeneratorTestModel::create([
+        'title' => 'Original Title',
+    ]);
+
+    expect($model->slug_field)->toBe('original-title');
+
+    $model->title = 'Updated Title';
+    $model->save();
+    $model->refresh();
+
+    expect($model->slug_field)->toBe('updated-title');
+});
+
+test('regenerates slug with uniqueness rules on update when slug_updates_on_save is enabled', function () {
+    config(['sanigen.generator_settings.slugify.slug_updates_on_save' => true]);
+
+    $first = BasicGeneratorTestModel::create([
+        'title' => 'First Title',
+    ]);
+
+    $second = BasicGeneratorTestModel::create([
+        'title' => 'Second Title',
+    ]);
+
+    $second->title = 'First Title';
+    $second->save();
+    $second->refresh();
+
+    expect($first->slug_field)->toBe('first-title');
+    expect($second->slug_field)->toBe('first-title-1');
+});
+
+test('model property can override config and enable slug updates on save', function () {
+    config(['sanigen.generator_settings.slugify.slug_updates_on_save' => false]);
+
+    $model = new class extends \Tests\BaseGeneratorTestModel {
+        protected bool $slugUpdatesOnSave = true;
+
+        protected $generate = [
+            'slug_field' => 'slugify:title',
+        ];
+    };
+
+    $model->title = 'Original Title';
+    $model->save();
+
+    expect($model->slug_field)->toBe('original-title');
+
+    $model->title = 'Updated Title';
+    $model->save();
+    $model->refresh();
+
+    expect($model->slug_field)->toBe('updated-title');
+});
+
+test('model property can override config and disable slug updates on save', function () {
+    config(['sanigen.generator_settings.slugify.slug_updates_on_save' => true]);
+
+    $model = new class extends \Tests\BaseGeneratorTestModel {
+        protected bool $slugUpdatesOnSave = false;
+
+        protected $generate = [
+            'slug_field' => 'slugify:title',
+        ];
+    };
+
+    $model->title = 'Original Title';
+    $model->save();
+
+    $originalSlug = $model->slug_field;
+
+    $model->title = 'Updated Title';
+    $model->save();
+    $model->refresh();
+
+    expect($model->slug_field)->toBe($originalSlug);
+});
+
 
 
 test('generates user property values', function () {
@@ -207,6 +302,31 @@ test('generates user property values', function () {
     // Assert that the user property was set to the authenticated user's email
     expect($model->user_property_field)->toBe('test@example.com');
 });
+
+test('generates carbon values from modifiers', function (string $modifier, string $unit, int $min, int $max) {
+    $generator = \IvanBaric\Sanigen\Registries\GeneratorRegistry::resolve('carbon:' . $modifier);
+    $generated = $generator->generate('carbon_field', (object) []);
+
+    expect($generated)->not->toBeNull();
+
+    $now = now();
+
+    $diff = match ($unit) {
+        'days' => $now->diffInDays($generated, false),
+        'hours' => $now->diffInHours($generated, false),
+        default => throw new InvalidArgumentException("Unknown unit {$unit}"),
+    };
+
+    expect($diff)->toBeGreaterThanOrEqual($min);
+    expect($diff)->toBeLessThanOrEqual($max);
+})->with([
+    // Allow +-1 day tolerance for execution time, timezone, and rounding.
+    ['+7 days', 'days', 6, 8],
+    ['-2 days', 'days', -3, -1],
+    // Allow a wider window to avoid flakiness from rounding to hours.
+    ['+3 hours', 'hours', 2, 4],
+    ['tomorrow', 'days', 0, 2],
+]);
 
 
 test('throws exception for invalid generator key', function () {

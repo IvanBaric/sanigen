@@ -4,76 +4,36 @@
 [![Total Downloads](https://img.shields.io/packagist/dt/ivanbaric/sanigen.svg?style=flat-square)](https://packagist.org/packages/ivanbaric/sanigen)
 [![License](https://img.shields.io/packagist/l/ivanbaric/sanigen.svg?style=flat-square)](https://packagist.org/packages/ivanbaric/sanigen)
 
-Sanigen is a powerful Laravel package that provides declarative sanitization and attribute generation for Eloquent models. With Sanigen, you can:
+Sanigen provides model-level sanitization and generators for teams that want consistency and less repetitive input-cleanup code.
 
-- **Automatically sanitize** model attributes using predefined or custom sanitizers
-- **Generate values** for model attributes during creation
-- **Define reusable sanitization pipelines** through configuration aliases
-- **Maintain clean, consistent data** across your application with minimal effort
-
-## Table of Contents
-
-- [Installation](#installation)
-- [Basic Configuration](#basic-configuration)
-- [Quick Start](#quick-start)
-- [Sanitizers](#sanitizers)
-- [Generators](#generators)
-- [Configuration](#configuration)
-- [Advanced Usage](#advanced-usage)
-- [Contributing](#contributing)
-- [License](#license)
-
-## Installation
-
-### Requirements
-
-- PHP 8.2 or higher
-- Laravel 12.0 or higher
-
-### Via Composer
+## Quick Start
 
 ```bash
 composer require ivanbaric/sanigen
 ```
 
-The package will automatically register its service provider if you're using Laravel's package auto-discovery.
-
-### Publish Configuration
-
-Publish the configuration file to customize sanitizers, generators, and other settings:
+Recommended: publish the config file.
 
 ```bash
 php artisan vendor:publish --provider="IvanBaric\Sanigen\SanigenServiceProvider" --tag="config"
 ```
 
-This will create a `config/sanigen.php` file in your application.
-
-## Basic Configuration
-
-After publishing the configuration, you can customize the package behavior in `config/sanigen.php`:
+Define or refine aliases in `config/sanigen.php`, then reuse the same sanitization standards across all your models 🚀
 
 ```php
-return [
-    // Enable or disable the package functionality
-    'enabled' => true,
-
-    // Define sanitization aliases (pipelines of sanitizers)
-    'sanitization_aliases' => [
-        'text:clean' => 'trim|strip_tags|remove_newlines|single_space',
-        // ... more aliases
-    ],
-
-    // Configure allowed HTML tags for sanitizers that strip tags
-    'allowed_html_tags' => '<p><b><i><strong><em><ul><ol><li><br><a><h1><h2><h3><h4><h5><h6><table><tr><td><th><thead><tbody><code><pre><blockquote><q><cite><hr><dl><dt><dd>',
-
-    // Set default encoding for sanitizers
-    'encoding' => 'UTF-8',
+'sanitization_aliases' => [
+    'text:title' => 'no_html|no_js|emoji_remove|remove_newlines|trim|single_space|lower|ucfirst',
+    'text:secure' => 'no_html|no_js|emoji_remove|trim|single_space',
+    'email:clean' => 'trim|lower|email',
+    'url:secure' => 'trim|remove_newlines|no_js|url',
+    'number:decimal' => 'trim|decimal_only',
 ];
 ```
 
-## Quick Start
+Sanigen gives you two model properties:
 
-Add the `Sanigen` trait to your Eloquent model and define sanitization rules and generators:
+- `$sanitize`: applies sanitizer aliases when values are assigned on the model, such as `text:title`, `text:secure`, or `email:clean`
+- `$generate`: fills missing attributes during `creating`, such as `slug`, `uuid`, `ulid`, `owner_id`, `team_id`, `carbon` dates, `random_string`, or `unique_string`
 
 ```php
 use Illuminate\Database\Eloquent\Model;
@@ -83,598 +43,260 @@ class Post extends Model
 {
     use Sanigen;
 
-    // Define attributes to be generated on model creation
-    protected $generate = [
-        'slug' => 'slugify:title',
-        'uuid' => 'uuid',
-    ];
+    protected $fillable = ['title', 'content', 'email', 'website'];
 
-    // Define sanitization rules for attributes
     protected $sanitize = [
         'title' => 'text:title',
         'content' => 'text:secure',
         'email' => 'email:clean',
+        'website' => 'url:secure',
+    ];
+
+    protected $generate = [
+        'slug' => 'slugify:title',
+        'uuid' => 'uuid',
+        'owner_id' => 'user:id',
+        'team_id' => 'user:current_team_id',
     ];
 }
 ```
 
-Now, when you create or update a Post model:
-
 ```php
-// Creating a new post
 $post = Post::create([
-    'title' => ' My First Post ',
-    'content' => '<script>alert("XSS")</script><p>This is my content</p>',
+    'title' => '  <script>alert(1)</script>my FIRST post  ',
+    'content' => '<script>alert(1)</script><p>Hello <strong>world</strong></p>',
     'email' => ' USER@EXAMPLE.COM ',
+    'website' => 'example.com',
 ]);
-
-// The model will automatically:
-// 1. Generate a slug: 'my-first-post'
-// 2. Generate a UUID
-// 3. Sanitize the title: 'My first post'
-// 4. Sanitize the content by removing the script tag: '<p>This is my content</p>'
-// 5. Sanitize the email: 'user@example.com'
 ```
 
-## Sanitizers
-
-Sanitizers clean and transform string values to ensure data consistency and security.
-
-### Using Sanitizers in Models
-
-Define sanitization rules in your model using the `$sanitize` property:
+Result:
 
 ```php
-protected $sanitize = [
-    'attribute_name' => 'sanitizer_name',
-    'another_attribute' => 'sanitizer1|sanitizer2|sanitizer3',
-    'complex_attribute' => 'text:secure', // Using a predefined alias
-];
+[
+    'uuid' => '550e8400-e29b-41d4-a716-446655440000',
+    'owner_id' => 1,
+    'team_id' => 42,
+    'title' => 'My first post',
+    'slug' => 'my-first-post',
+    'content' => 'Hello world',
+    'email' => 'user@example.com',
+    'website' => 'https://example.com',
+]
 ```
 
-Sanitization is automatically applied when creating a model (if using the Sanigen trait) and when updating a model (always).
+## Full Reference
 
-### Available Sanitizers
+<details open>
+<summary>Built-in sanitizers</summary>
 
-Sanigen includes many built-in sanitizers for common use cases:
+| Sanitizer | Description | Example |
+| --- | --- | --- |
+| `alpha_dash` | Keeps letters, numbers, hyphens, underscores | `"Hello-123_!"` -> `"Hello-123_"` |
+| `alpha_only` | Keeps only letters | `"Hello123"` -> `"Hello"` |
+| `alphanumeric_only` | Keeps only letters and numbers | `"Hello123!"` -> `"Hello123"` |
+| `ascii_only` | Keeps only ASCII characters | `"cafe ć"` -> `"cafe "` |
+| `decimal_only` | Keeps only digits and decimal point | `"Price: $123.45"` -> `"123.45"` |
+| `email` | Sanitizes email addresses | `" USER@EXAMPLE.COM "` -> `"user@example.com"` |
+| `emoji_remove` | Removes all emoji characters | `"Hello 👋 World 🌍"` -> `"Hello  World "` |
+| `htmlspecialchars` | HTML5-compatible special char conversion | `"<script>"` -> `"&lt;script&gt;"` |
+| `json_escape` | Escapes characters for JSON | `"\"Test\""` -> `"\\\"Test\\\""` |
+| `lower` | Converts to lowercase | `"Hello"` -> `"hello"` |
+| `no_html` | Removes all HTML tags | `"<p>Hello</p>"` -> `"Hello"` |
+| `no_js` | JavaScript removal and XSS protection | `"<script>alert(1)</script>Hello"` -> `"Hello"` |
+| `numeric_only` | Keeps only digits | `"Price: $123.45"` -> `"12345"` |
+| `phone` | Sanitizes phone numbers (E.164-ish) | `"(123) 456-7890"` -> `"+1234567890"` |
+| `remove_newlines` | Removes all line breaks | `"Line 1\nLine 2"` -> `"Line 1Line 2"` |
+| `single_space` | Normalizes whitespace to single spaces | `"Hello   World"` -> `"Hello World"` |
+| `slug` | Creates URL-friendly slug | `"Hello World"` -> `"hello-world"` |
+| `strip_tags` | Removes HTML tags except allowed ones | `"<script>Hello</script>"` -> `"Hello"` |
+| `trim` | Removes whitespace from beginning and end | `" Hello "` -> `"Hello"` |
+| `ucfirst` | Capitalizes first character | `"hello"` -> `"Hello"` |
+| `upper` | Converts to uppercase | `"hello"` -> `"HELLO"` |
+| `url` | Ensures URLs have a protocol | `"example.com"` -> `"https://example.com"` |
 
-| Sanitizer | Description                                  | Example                                    |
-|-----------|----------------------------------------------|--------------------------------------------|
-| `alpha_dash` | Keeps letters, numbers, hyphens, underscores | `"Hello-123_!"` → `"Hello-123_"`           |
-| `alpha_only` | Keeps only letters                           | `"Hello123"` → `"Hello"`                   |
-| `alphanumeric_only` | Keeps only letters and numbers               | `"Hello123!"` → `"Hello123"`               |
-| `ascii_only` | Keeps only ASCII characters                  | Removes non-ASCII Unicode characters       |
-| `decimal_only` | Keeps only digits and decimal point          | `"Price: $123.45"` → `"123.45"`            |
-| `email` | Sanitizes email addresses                    | `" USER@EXAMPLE.COM "` → `"user@example.com"` |
-| `emoji_remove` | Removes all emoji characters                 | Strips Unicode emoji blocks                |
-| `escape` | Converts special characters to HTML entities | `"<script>"` → `"&lt;script&gt;"`          |
-| `htmlspecialchars` | HTML5-compatible special char conversion     | Similar to `escape` but with HTML5 support |
-| `json_escape` | Escapes characters for JSON                  | Escapes quotes, backslashes, etc.          |
-| `lower` | Converts to lowercase                        | `"Hello"` → `"hello"`                      |
-| `no_html` | Removes all HTML tags                        | `"<p>Hello</p>"` → `"Hello"`               |
-| `no_js` | JavaScript removal and XSS protection        | Removes scripts, event handlers, alert() functions, etc. |
-| `numeric_only` | Keeps only digits                            | `"Price: $123.45"` → `"12345"`             |
-| `phone` | Sanitizes phone numbers (E.164)                   | `"(123) 456-7890"` → `"+1234567890"`       |
-| `remove_newlines` | Removes all line breaks                      | Converts multi-line text to single line    |
-| `single_space` | Normalizes whitespace to single spaces       | `"Hello  World"` → `"Hello World"`         |
-| `slug` | Creates URL-friendly slug                    | `"Hello World"` → `"hello-world"`          |
-| `strip_tags` | Removes HTML tags except allowed ones        | `"<script>Hello</script>"` → `"Hello"`     |
-| `trim` | Removes whitespace from beginning and end    | `" Hello "` → `"Hello"`                    |
-| `ucfirst` | Capitalizes first character                  | `"hello"` → `"Hello"`                      |
-| `upper` | Converts to uppercase                        | `"hello"` → `"HELLO"`                      |
-| `url` | Ensures URLs have a protocol                 | `"example.com"` → `"https://example.com"`  |
+</details>
 
-### Sanitization Aliases
+<details open>
+<summary>Built-in generators</summary>
 
-One of the most powerful features of Sanigen is the ability to define **sanitization aliases** - reusable pipelines of sanitizers that can be applied together.
+| Generator | Purpose | Example |
+| --- | --- | --- |
+| `uuid` | UUID v4 | `550e8400-e29b-41d4-a716-446655440000` |
+| `uuid:v7` | UUID v7 | `018f0f4b-9c3a-7c3e-9d9a-2c3c4b5a6d7e` |
+| `uuid:v8` | UUID v8 | `018f0f4b-9c3a-8c3e-9d9a-2c3c4b5a6d7e` |
+| `ulid` | ULID | `01J3Z3N6K2Z9N0R2Z7T1W5Y8QG` |
+| `autoincrement` | next numeric value | `1` -> `2` -> `3` |
+| `unique_string:length` | unique random string | `unique_string:8` -> `A1B2C3D4` |
+| `random_string:length` | random string | `random_string:16` -> `aZ2kLm9Qp0xYt1uV` |
+| `slugify:field` | unique slug from another field | `slugify:title` -> `my-post-title` |
+| `slugify:field,date` | unique slug with date suffix | `slugify:title,date` -> `my-post-title-27-03-2026` |
+| `slugify:field,uuid` | unique slug with UUID suffix | `slugify:title,uuid` -> `my-post-title-550e8400-e29b-41d4-a716-446655440000` |
+| `carbon:+7 days` | Carbon date from a modifier | `carbon:+7 days` -> `2026-04-03 12:00:00` |
+| `user:property` | authenticated user property | `user:id` -> `1`, `user:email` -> `user@example.com` |
 
-The package comes with many predefined aliases in the configuration:
+</details>
 
-```php
-// Example aliases from config/sanigen.php
-'sanitization_aliases' => [
-    'text:clean'      => 'strip_tags|remove_newlines|trim|single_space',
-    'text:secure'     => 'no_html|no_js|emoji_remove|trim|single_space',
-    'text:title'      => 'no_html|no_js|emoji_remove|remove_newlines|trim|single_space|lower|ucfirst',
-    'email:clean'     => 'trim|lower|email',
-    'url:clean'       => 'trim|remove_newlines|no_js',
-    'url:secure'      => 'trim|remove_newlines|no_js|url',
-    'number:integer'  => 'trim|numeric_only',
-    'number:decimal'  => 'trim|decimal_only',
-    'phone:clean'     => 'trim|phone',
-    'text:alpha_dash' => 'trim|lower|alpha_dash',
-    'json:escape'     => 'trim|json_escape',
-    // ... and more
-],
-```
-
-Use these aliases in your models:
-
-```php
-protected $sanitize = [
-    'title' => 'text:title',
-    'content' => 'text:secure',
-    'email' => 'email:clean',
-    'website' => 'url:secure',
-];
-```
-
-### Creating Custom Sanitizers
-
-You can create your own sanitizers by implementing the `Sanitizer` interface:
+<details>
+<summary>Custom sanitizers</summary>
 
 ```php
 namespace App\Sanitizers;
 
 use IvanBaric\Sanigen\Sanitizers\Contracts\Sanitizer;
 
-class MyCustomSanitizer implements Sanitizer
+class UsernameSanitizer implements Sanitizer
 {
     public function apply(string $value): string
     {
-        // Transform the value
-        return $transformed_value;
+        return strtolower(trim($value));
     }
 }
 ```
 
-Register your custom sanitizer:
+Register it:
 
 ```php
-// In a service provider
 use IvanBaric\Sanigen\Registries\SanitizerRegistry;
 
-SanitizerRegistry::register('my_custom', \App\Sanitizers\MyCustomSanitizer::class);
+SanitizerRegistry::register('username', \App\Sanitizers\UsernameSanitizer::class);
 ```
 
-Then use it in your models:
+Register custom sanitizers in a service provider, typically in `App\Providers\AppServiceProvider` (either `register()` or `boot()`), or in your own dedicated provider.
+
+Use it:
 
 ```php
 protected $sanitize = [
-    'attribute' => 'my_custom',
+    'username' => 'username',
 ];
 ```
 
-## Generators
+</details>
 
-Generators automatically create values for model attributes during creation.
-
-### Using Generators in Models
-
-Define generators in your model using the `$generate` property:
-
-```php
-protected $generate = [
-    'attribute_name' => 'generator_name',
-    'parameterized_attribute' => 'generator:parameter',
-];
-```
-
-Generators are applied only when creating a model, and only if the attribute is empty.
-
-### Available Generators
-
-Sanigen includes several built-in generators:
-
-| Generator | Description | Example |
-|-----------|-------------|---------|
-| `autoincrement` | Increments from the highest existing value | `1`, `2`, `3`, ... |
-| `carbon:+7 days` | Creates a date with the specified offset | Current date + 7 days |
-| `random_string:8` | Generates a random string of specified length | `"a1b2c3d4"` (random string) |
-| `slugify:field` | Creates a unique slug from another field (ensures uniqueness with configurable suffix types) | `"my-post-title"`, `"my-post-title-2023-07-20"` |
-| `ulid` | Generates a ULID (sortable identifier) | `"01F8MECHZX3TBDSZ7XR1QKR505"` |
-| `unique_string:8` | Generates a unique random string of specified length (ensures uniqueness by checking the database) | `"a1b2c3d4"` (8 chars) |
-| `user:property` | Uses a property from the authenticated user | `"john@example.com"` (user's email) |
-| `uuid` | Generates a UUID (v4 by default) | `"550e8400-e29b-41d4-a716-446655440000"` |
-| `uuid:v4` | Generates a UUID v4 (random-based) | `"550e8400-e29b-41d4-a716-446655440000"` |
-| `uuid:v7` | Generates a UUID v7 (time-ordered) | `"017f22e2-79b0-7cc3-98c4-dc0c0c07398f"` |
-| `uuid:v8` | Generates a UUID v8 (custom format) | `"017f22e2-79b0-8cc3-98c4-dc0c0c07398f"` |
-
-### Parameter Passing
-
-Many generators accept parameters using the colon syntax:
-
-```php
-protected $generate = [
-    'code' => 'unique_string:6',      // 6-character unique random string (ensures uniqueness)
-    'token' => 'random_string:16',  // 16-character random string (no uniqueness check)
-    'slug' => 'slugify:title',      // Unique slug based on the title field (with -1, -2 suffixes if needed)
-    'expires_at' => 'carbon:+30 days', // Date 30 days in the future (carbon:now, carbon:tomorrow 14:00 etc.)
-    'author_id' => 'user:id',       // Current user's ID
-    'team_id' => 'user:current_team_id', // Current user's team ID
-    'author_email' => 'user:email', // Current user's email
-    'order' => 'autoincrement',     // Next available number (max + 1)
-    'uuid' => 'uuid',               // UUID v4 (default): "550e8400-e29b-41d4-a716-446655440000"
-    'uuid_v7' => 'uuid:v7',          // UUID v7 (time-ordered): "017f22e2-79b0-7cc3-98c4-dc0c0c07398f"
-    'uuid_v8' => 'uuid:v8',          // UUID v8 (custom format): "017f22e2-79b0-8cc3-98c4-dc0c0c07398f"
-    'ulid' => 'ulid'                // ULID: "01F8MECHZX3TBDSZ7XR1QKR505"
-];
-```
-
-### Creating Custom Generators
-
-You can create your own generators by implementing the `GeneratorContract` interface:
+<details>
+<summary>Custom generators</summary>
 
 ```php
 namespace App\Generators;
 
 use IvanBaric\Sanigen\Generators\Contracts\GeneratorContract;
 
-class MyCustomGenerator implements GeneratorContract
+class CouponCodeGenerator implements GeneratorContract
 {
     public function generate(string $field, object $model): mixed
     {
-        // Generate a value
-        return $generated_value;
+        return 'SALE-' . strtoupper(str()->random(8));
     }
 }
 ```
 
-Register your custom generator:
+Register it:
 
 ```php
-// In a service provider
 use IvanBaric\Sanigen\Registries\GeneratorRegistry;
 
-GeneratorRegistry::register('my_custom', \App\Generators\MyCustomGenerator::class);
+GeneratorRegistry::register('coupon_code', \App\Generators\CouponCodeGenerator::class);
 ```
 
-Then use it in your models:
+Register custom generators in a service provider, typically in `App\Providers\AppServiceProvider` (either `register()` or `boot()`), or in your own dedicated provider.
+
+Use it:
 
 ```php
 protected $generate = [
-    'attribute' => 'my_custom',
+    'code' => 'coupon_code',
 ];
 ```
 
-## Configuration
+</details>
 
-### Package Status
+## Resanitize Existing Rows
 
-You can enable or disable the entire package functionality:
+Warning: this command updates existing database records. Run it on a backup-aware deployment path, test it on staging first, and choose a conservative `--chunk` size for large tables.
 
-```php
-// In config/sanigen.php
-'enabled' => true, // or false to disable
+```bash
+php artisan sanigen:resanitize "App\Models\Post" --chunk=200
 ```
 
-When disabled, no automatic sanitization or generation will occur.
+## Production Notes
 
-### Sanitization Aliases
+<details>
+<summary>Useful config options</summary>
 
-The most powerful feature of Sanigen is the ability to define custom sanitization pipelines as aliases. This allows you to:
-
-1. Create reusable sanitization strategies
-2. Apply multiple sanitizers with a single alias
-3. Standardize sanitization across your application
-4. Make your models cleaner and more readable
-
-Define your own aliases in the configuration:
 
 ```php
-// In config/sanigen.php
-'sanitization_aliases' => [
-    // Standard text processing
-    'text:clean' => 'trim|strip_tags|remove_newlines|single_space',
-
-    // Custom aliases for your application
-    'username' => 'trim|lower|alphanumeric_only',
-    'product:sku' => 'trim|upper|ascii_only',
-    'address' => 'trim|single_space|no_js|htmlspecialchars',
-],
-```
-
-Then use these aliases in your models:
-
-```php
-protected $sanitize = [
-    'username' => 'username',
-    'sku' => 'product:sku',
-    'shipping_address' => 'address',
-];
-```
-
-### Allowed HTML Tags
-
-Configure which HTML tags are allowed when using sanitizers like `strip_tags` or `no_js`:
-
-```php
-// In config/sanigen.php
-'allowed_html_tags' => '<p><b><i><strong><em><ul><ol><li><br><a><h1><h2><h3><h4><h5><h6><table><tr><td><th><thead><tbody><code><pre><blockquote><q><cite><hr><dl><dt><dd>',
-```
-
-### Default Encoding
-
-Set the default character encoding for sanitizers:
-
-```php
-// In config/sanigen.php
-'encoding' => 'UTF-8',
-```
-
-### Slug Generator Configuration
-
-The slug generator (`slugify`) can be configured to use different types of suffixes for ensuring uniqueness:
-
-```php
-// In config/sanigen.php
-'generator_settings' => [
-    'slugify' => [
-        // Type of suffix to use for ensuring uniqueness
-        // Options: 'increment', 'date', 'uuid'
-        'suffix_type' => 'increment',
-
-        // Format for date suffix (used when suffix_type is 'date')
-        'date_format' => 'Y-m-d',
+return [
+    'enabled' => true,
+    'missing_sanitizer' => 'throw', // throw, ignore, log
+    'allowed_html_tags' => '<p><strong><em><a><ul><ol><li><br>',
+    'encoding' => 'UTF-8',
+    'max_xss_input_length' => 32768,
+    'generator_settings' => [
+        'slugify' => [
+            'suffix_type' => 'increment', // increment, date, uuid
+            'slug_updates_on_save' => false,
+            'date_format' => 'd-m-Y',
+        ],
     ],
-],
-```
-
-Available suffix types:
-
-- `increment`: Appends an incremental number (e.g., `-1`, `-2`, `-3`) to ensure uniqueness (default)
-- `date`: Appends the current date in the specified format (e.g., `-2023-07-20`)
-- `uuid`: Appends a UUID to ensure uniqueness (e.g., `-550e8400-e29b-41d4-a716-446655440000`)
-
-You can also specify the suffix type directly in your model:
-
-```php
-// In your model
-protected $generate = [
-    'slug' => 'slugify:title,date', // Use date suffix
-    'another_slug' => 'slugify:name,uuid', // Use uuid suffix
 ];
 ```
 
-## Advanced Usage
+Why these matter:
 
-### Resanitizing Existing Records
+- `enabled`: turn the package on or off globally
+- `missing_sanitizer`: fail fast in development, or `log` / `ignore` in production if you prefer softer behavior
+- `allowed_html_tags`: whitelist formatting tags for `strip_tags` and `no_js`
+- `max_xss_input_length`: caps very large payloads before running the XSS cleanup pipeline
+- `slug_updates_on_save`: keep `false` if you want stable URLs, enable it if slugs should follow title changes
 
-If you need to apply sanitization rules to existing records in your database (for example, after adding new sanitization rules or fixing issues with existing data), you can use the `sanigen:resanitize` command:
-
-```bash
-php artisan sanigen:resanitize "App\Models\Post" --chunk=200
-```
-
-This command:
-
-1. Takes a model class name as an argument
-2. Processes records in chunks to prevent memory overflow (default chunk size is 200)
-3. Applies all sanitization rules defined in the model's `$sanitize` property
-4. Uses database transactions for safety
-5. Uses `saveQuietly()` to avoid triggering model events that might cause infinite loops
-
-**Important:** The command will display a warning and ask for confirmation before proceeding, as it will modify existing records in your database. It's strongly recommended to create a backup of your database before running this command.
-
-#### Options
-
-- `--chunk=<size>`: Set the number of records to process at once (default: 200)
-- `--force`: Skip the confirmation prompt
-
-#### Example
-
-```bash
-# Process all Post models with a chunk size of 200
-php artisan sanigen:resanitize "App\Models\Post" --chunk=200
-
-# Process all User models with the default chunk size
-php artisan sanigen:resanitize "App\Models\User"
-
-# Skip confirmation prompt
-php artisan sanigen:resanitize "App\Models\Post" --force
-```
-
-#### Choosing an Optimal Chunk Size
-
-When processing large datasets with many attributes, choosing an appropriate chunk size is important to prevent memory issues:
-
-- **Too large**: Processing too many records at once can lead to memory exhaustion, especially with models that have many attributes or complex sanitization rules.
-- **Too small**: Very small chunk sizes may result in slower overall processing due to the overhead of creating many small transactions.
-
-**Best practices:**
-- For models with many attributes or complex sanitization (like JavaScript removal), use smaller chunk sizes (100-250)
-- For simpler models with few attributes, larger chunk sizes (500-1000) may be more efficient
-- If you encounter memory issues, reduce the chunk size
-- For very large tables, ensure the chunk size is significantly smaller than the total number of records
-- Avoid using a chunk size equal to the total number of records, as this can lead to memory exhaustion
-
-### Performance Testing
-
-The package includes a performance test that can be used to evaluate the performance of the sanitization process with a large number of records and many attributes per record. This is particularly useful for testing the `sanigen:resanitize` command on large datasets.
-
-#### Running the Performance Test
-
-To run the performance test:
-
-```bash
-# Run with default settings (10,000 records)
-php artisan test --filter=PerformanceTest
-
-# Run with custom configuration using environment variables
-PERFORMANCE_TEST_RECORDS=5000 PERFORMANCE_TEST_BATCH_SIZE=1000 PERFORMANCE_TEST_CHUNK_SIZE=1000 php artisan test --filter=PerformanceTest
-```
-
-#### Configuration Options
-
-The performance test can be configured using environment variables:
-
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `PERFORMANCE_TEST_RECORDS` | Number of records to generate | 500 |
-| `PERFORMANCE_TEST_BATCH_SIZE` | Number of records to insert in each batch | 500 |
-| `PERFORMANCE_TEST_CHUNK_SIZE` | Number of records to process in each chunk during sanitization | Auto-calculated (half of total records, max 250) |
-| `PERFORMANCE_TEST_CLEANUP` | Whether to clean up (delete) test data after the test | false |
-
-> **Important Note on Chunk Size:** The test automatically calculates an optimal chunk size to prevent memory issues. For best performance, ensure the chunk size is smaller than the total number of records. When processing large datasets with many attributes, using a chunk size equal to the total records can lead to memory exhaustion. The default calculation (half of total records, maximum 250) works well for most scenarios.
-
-#### Test Process
-
-The performance test:
-
-1. Creates a test model with dozens of attributes using different sanitizers
-2. Generates the specified number of records with unsanitized data
-3. Runs the `sanigen:resanitize` command on these records
-4. Measures and reports performance metrics
-
-#### Performance Metrics
-
-The test collects and reports the following metrics:
-
-- **Generation Time**: Time taken to generate the test records
-- **Sanitization Time**: Time taken to sanitize all records
-- **Total Time**: Total execution time
-- **Memory Usage**: Memory usage before, after generation, and after sanitization
-- **Memory Increase**: Memory increase during generation and sanitization
-
-#### Interpreting Results
-
-The performance metrics can help you:
-
-- Evaluate the performance impact of sanitization on your application
-- Determine optimal chunk sizes for processing large datasets
-- Identify potential memory issues with large datasets
-- Compare performance across different environments or configurations
-
-For large production databases, it's recommended to start with a small number of records and gradually increase to find the optimal configuration for your specific environment.
-
-### Combining Generators and Sanitizers
-
-One powerful feature of Sanigen is the ability to combine generators and sanitizers on the same field. For example, you can generate a unique code and then automatically convert it to uppercase:
+You can also override slug update behavior per model:
 
 ```php
-class Coupon extends Model
+class Post extends Model
 {
     use Sanigen;
+
+    protected bool $slugUpdatesOnSave = true;
 
     protected $generate = [
-        'code' => 'unique_string:6', // Generate a 6-character unique random string
-    ];
-
-    protected $sanitize = [
-        'code' => 'upper', // Convert the code to uppercase
+        'slug' => 'slugify:title',
     ];
 }
 ```
 
-When you create a new Coupon model:
+Per-model override wins over the global config.
 
-```php
-$coupon = Coupon::create();
+</details>
+
+## Spatie Translatable Support
+
+Sanigen works with Spatie Laravel Translatable because translatable attributes are stored as arrays and Sanigen sanitizes each scalar item individually.
+
+## Limitations
+
+Sanigen only works when data goes through an Eloquent model instance.
+
+Simple rule: if data goes through `$model`, Sanigen runs. If data goes straight to the database, it does not.
+
+## Tests
+
+Run the package test suite before release:
+
+```bash
+composer test
 ```
-
-The flow is:
-1. The unique_string generator creates a unique random 6-character string (e.g., "a1b2c3")
-2. The uppercase sanitizer converts it to uppercase (e.g., "A1B2C3")
-
-The result is a 6-character uppercase code that is both generated and sanitized automatically.
-
-### Manual Sanitization
-
-You can manually sanitize attributes:
-
-```php
-$model->sanitizeAttributes();
-```
-
-### Support for Spatie Translatable Fields
-
-Sanigen supports [Spatie's Laravel Translatable](https://spatie.be/docs/laravel-translatable/v6/introduction) package, which allows you to store translations for your model's attributes. When using Spatie Translatable, translations are stored as arrays (e.g., `$name['en'] = "<script>alert("xss")</script>smart"`).
-
-Sanigen will automatically detect and sanitize these array values, applying the sanitization rules to each translation individually:
-
-```php
-use Illuminate\Database\Eloquent\Model;
-use IvanBaric\Sanigen\Traits\Sanigen;
-use Spatie\Translatable\HasTranslations;
-
-class Product extends Model
-{
-    use Sanigen;
-    use HasTranslations;
-    
-    public $translatable = [
-        'name',
-        'description',
-    ];
-    
-    protected $sanitize = [
-        'name' => 'no_js|trim',
-        'description' => 'text:secure',
-    ];
-}
-```
-
-When you set translations with potentially unsafe content:
-
-```php
-$product = new Product();
-$product->setTranslation('name', 'hr', '<script>alert("xss")</script>smart');
-$product->setTranslation('name', 'en', 'Smart <script>alert("xss")</script> Product');
-$product->save();
-
-// Or set all translations at once:
-$product->name = [
-    'hr' => '<script>alert("xss")</script>smart',
-    'en' => 'Smart <script>alert("xss")</script> Product'
-];
-$product->save();
-```
-
-Sanigen will sanitize each translation individually:
-
-```php
-echo $product->getTranslation('name', 'hr'); // Outputs: "smart"
-echo $product->getTranslation('name', 'en'); // Outputs: "Smart  Product"
-```
-
-This ensures that all your translatable content is properly sanitized, regardless of the language.
-
-### Combining with Laravel Validation
-
-Sanigen works well with Laravel's validation:
-
-```php
-// In a controller
-$validated = $request->validate([
-    'title' => 'required|string|max:255',
-    'content' => 'required|string',
-    'email' => 'required|email',
-]);
-
-// Create model with validated data
-$post = Post::create($validated);
-
-// Sanigen will automatically:
-// 1. Generate any missing attributes
-// 2. Sanitize the input according to rules
-// 3. Apply $casts after sanitization
-
-// Note: After sanitization is complete, Laravel's $casts will be applied
-// to the model attributes. This means your data goes through sanitization
-// first, and then type casting occurs, ensuring both clean and properly
-// typed data in your models.
-```
-
-
-## Similar Packages
-
-If you're looking for alternatives or complementary packages to Sanigen, here are some other Laravel packages that provide similar functionality:
-
-- [Elegant Sanitizer](https://github.com/Waavi/Sanitizer) - A Laravel package that provides an elegant way to sanitize and transform input data.
-- [WAAVI Sanitizer](https://github.com/Waavi/Sanitizer) - Provides an easy way to format user input, both through the provided filters or through custom ones that can easily be added to the sanitizer library.
-
-Each of these packages takes a slightly different approach to data sanitization and generation, so you might find one that better suits your specific needs or use them together for more comprehensive data handling.
 
 ## Contributing
 
-Contributions are welcome! Please feel free to submit a Pull Request.
+Pull requests are welcome.
 
 ## License
 
-The MIT License (MIT). Please see [License File](LICENSE.md) for more information.
+MIT. See [LICENSE.md](LICENSE.md).
 
 ## Support
 
-If you find this package useful, consider buying me a coffee:
+If Sanigen saves you time, you can support the project here:
 
 [![Buy Me A Coffee](https://www.buymeacoffee.com/assets/img/custom_images/orange_img.png)](https://coff.ee/ivanbaric)

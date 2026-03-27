@@ -45,6 +45,7 @@ abstract class TestCase extends BaseTestCase
             $table->string('title')->nullable();
             $table->string('slug_field')->nullable();
             $table->string('user_property_field')->nullable();
+            $table->dateTime('carbon_field')->nullable();
             $table->timestamps();
         });
     }

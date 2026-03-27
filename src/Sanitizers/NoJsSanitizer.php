@@ -88,12 +88,23 @@ final class NoJsSanitizer implements Sanitizer
         
         // 8. Remove JavaScript atob() function calls - simplified pattern
         $value = preg_replace('/atob\s*\([^)]*\)/is', '', $value) ?? $value;
+
+        // 9. Remove additional common JavaScript execution/network calls in plain text
+        $value = preg_replace('/\b(?:fetch|setTimeout|setInterval|XMLHttpRequest|importScripts)\s*\([^)]*\)/is', '', $value) ?? $value;
+        $value = preg_replace('/\bnew\s+Function\s*\([^)]*\)/is', '', $value) ?? $value;
+        $value = preg_replace('/\bFunction\s*\([^)]*\)/is', '', $value) ?? $value;
+
+        // 10. Remove common high-risk assignment targets
+        $value = preg_replace('/\b(?:document\.cookie|window\.location|location\.href)\s*=\s*[^;]+;?/is', '', $value) ?? $value;
+
+        // 11. Remove direct cookie access tokens even without assignment
+        $value = preg_replace('/\bdocument\.cookie\b/is', '', $value) ?? $value;
         
-        // 9. Keep only allowed HTML tags from configuration
+        // 12. Keep only allowed HTML tags from configuration
         $allowed = config('sanigen.allowed_html_tags', '');
         $value = strip_tags($value, $allowed);
 
-        // 10. Normalize whitespace
+        // 13. Normalize whitespace
         return preg_replace('/\s+/', ' ', trim($value)) ?: '';
     }
 }

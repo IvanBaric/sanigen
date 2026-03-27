@@ -1,5 +1,6 @@
 {
   "name": "ivanbaric/sanigen",
+  "version": "1.0.0",
   "description": "Declarative sanitization and attribute generators for Eloquent models.",
   "type": "library",
   "license": "MIT",
@@ -22,7 +23,7 @@
   },
   "require": {
     "php": "^8.2",
-    "illuminate/support": "^12.0"
+    "illuminate/support": "^12.0 || ^13.0"
   },
   "require-dev": {
     "orchestra/testbench": "^10.0",
@@ -35,5 +36,8 @@
     "allow-plugins": {
       "pestphp/pest-plugin": true
     }
+  },
+  "scripts": {
+    "test": "pest"
   }
 }

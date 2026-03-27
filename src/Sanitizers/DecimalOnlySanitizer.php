@@ -32,6 +32,22 @@ final class DecimalOnlySanitizer implements Sanitizer
         $normalized = str_replace(',', '.', $value);
 
         // Keep only digits and decimal points
-        return preg_replace(pattern: '/[^0-9\.]+/', replacement: '', subject: $normalized) ?? '';
+        $clean = preg_replace(pattern: '/[^0-9\.]+/', replacement: '', subject: $normalized) ?? '';
+
+        // If the input contained thousand separators (e.g. 1,234.56 -> 1.234.56),
+        // collapse all dots except the last one, treating the last dot as the decimal separator.
+        $parts = explode('.', $clean);
+        if (count($parts) <= 2) {
+            return $clean;
+        }
+
+        $decimal = array_pop($parts);
+        $integer = implode('', $parts);
+
+        if ($decimal === '') {
+            return $integer;
+        }
+
+        return $integer . '.' . $decimal;
     }
 }

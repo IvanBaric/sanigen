@@ -14,6 +14,22 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Missing Sanitizer Behavior
+    |--------------------------------------------------------------------------
+    |
+    | Controls what happens when a model references a sanitizer key that does
+    | not exist (e.g. a typo in $sanitize or a removed sanitizer).
+    |
+    | Options:
+    | - 'throw'  : throw InvalidArgumentException (fail fast, default)
+    | - 'ignore' : skip the missing sanitizer and keep the current value
+    | - 'log'    : log an error (if logger() exists) and skip the sanitizer
+    |
+    */
+    'missing_sanitizer' => 'throw',
+
+    /*
+    |--------------------------------------------------------------------------
     | Sanitization Aliases
     |--------------------------------------------------------------------------
     |
@@ -92,6 +108,18 @@ return [
     |
     */
     'encoding' => 'UTF-8',
+
+    /*
+    |--------------------------------------------------------------------------
+    | Maximum XSS Input Length
+    |--------------------------------------------------------------------------
+    |
+    | To avoid pathological inputs consuming excessive CPU or memory, the
+    | no_js sanitizer will truncate extremely large payloads before applying
+    | its sanitization pipeline.
+    |
+    */
+    'max_xss_input_length' => 32768,
     
 
     /*
@@ -109,6 +137,10 @@ return [
             // Type of suffix to use for ensuring uniqueness
             // Options: 'increment', 'date', 'uuid'
             'suffix_type' => 'increment',
+
+            // Regenerate slug fields on update when the source field changes.
+            // Default is false to keep public URLs stable.
+            'slug_updates_on_save' => false,
 
             // Format for date suffix (used when suffix_type is 'date')
             // Uses PHP date format: https://www.php.net/manual/en/datetime.format.php

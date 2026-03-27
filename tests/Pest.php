@@ -64,7 +64,7 @@ namespace Tests {
         protected $fillable = [
             'title', 'uuid_field', 'ulid_field', 'auto_increment_field', 
             'unique_code_field', 'random_string_field', 'slug_field', 
-            'user_property_field'
+            'user_property_field', 'carbon_field'
         ];
     }
 

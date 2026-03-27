@@ -249,6 +249,30 @@ test('sanitizes alert functions with whitespace variations', function () {
     expect($model->xss_field)->toBe('and');
 });
 
+test('sanitizes plain javascript calls like fetch and timers', function () {
+    $model = new SanitizerTestModel();
+    $model->xss_field = 'before fetch("https://evil.test") setTimeout(alert, 1000) after';
+    $model->save();
+
+    expect($model->xss_field)->toBe('before after');
+});
+
+test('sanitizes document cookie access and assignment', function () {
+    $model = new SanitizerTestModel();
+    $model->xss_field = 'token document.cookie and document.cookie = "session=abc"; done';
+    $model->save();
+
+    expect($model->xss_field)->toBe('token and done');
+});
+
+test('sanitizes Function constructor patterns', function () {
+    $model = new SanitizerTestModel();
+    $model->xss_field = 'before new Function("return 1") and Function("x") after';
+    $model->save();
+
+    expect($model->xss_field)->toBe('before and after');
+});
+
 test('throws exception when non-existent sanitizer is requested', function () {
     // Create a model with a non-existent sanitizer
     $model = new class extends SanitizerTestModel {

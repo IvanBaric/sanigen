@@ -106,8 +106,19 @@ class SanitizerRegistry
         // Standard single sanitizer
         $class = static::$map[$key] ?? null;
         
-        // Handle non-existent sanitizers by throwing an exception
+        // Handle non-existent sanitizers based on config.
         if ($class === null) {
+            $mode = config('sanigen.missing_sanitizer', 'throw');
+            if ($mode === 'ignore') {
+                return null;
+            }
+            if ($mode === 'log') {
+                if (function_exists('logger')) {
+                    logger()->error("Sanigen: missing sanitizer '{$key}'.");
+                }
+                return null;
+            }
+
             throw new \InvalidArgumentException("Sanitizer '{$key}' does not exist.");
         }
 
