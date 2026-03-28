@@ -9,7 +9,7 @@ use IvanBaric\Sanigen\Console\Commands\ResanitizeCommand;
 
 /**
  * Service provider for the Sanigen Model Tools package.
- * 
+ *
  * This service provider registers the package's configuration file
  * and makes it available to the Laravel application.
  */
@@ -17,10 +17,10 @@ class SanigenServiceProvider extends ServiceProvider
 {
     /**
      * Bootstrap any package services.
-     * 
+     *
      * This method is called after all other service providers have been registered,
      * meaning you have access to all other services that have been registered by the framework.
-     * 
+     *
      * @return void
      */
     public function boot(): void
@@ -42,10 +42,10 @@ class SanigenServiceProvider extends ServiceProvider
 
     /**
      * Register any package services.
-     * 
+     *
      * This method is called before the boot method and before any other service provider has
      * been registered. The default service providers are registered before the boot method is called.
-     * 
+     *
      * @return void
      */
     public function register(): void

@@ -1,5 +1,7 @@
 <?php
 
+// Configuration defaults for the 1.5.x API surface.
+
 return [
     'enabled' => true,
 

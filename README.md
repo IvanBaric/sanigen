@@ -5,6 +5,7 @@
 [![License](https://img.shields.io/packagist/l/ivanbaric/sanigen.svg?style=flat-square)](https://packagist.org/packages/ivanbaric/sanigen)
 
 Sanigen provides declarative sanitization/normalization and attribute generators for Eloquent models, for teams that want consistency and less repetitive input-cleanup code.
+Version 1.5.0 consolidates the current API, generator tooling, and attribute-based configuration model.
 
 ## Quick Start
 

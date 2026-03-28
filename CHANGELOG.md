@@ -5,6 +5,49 @@ All notable changes to the Sanigen package will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.5.0] - 2026-03-28
+
+### Added
+- Added Laravel 13 support (`illuminate/support: ^12.0 || ^13.0`)
+- Added configurable missing sanitizer behavior via `missing_sanitizer` config:
+  - `throw` (default)
+  - `ignore`
+  - `log`
+- Added `slug_updates_on_save` config option for slug regeneration on update
+- Added per-model slug update override support via `protected $slugUpdatesOnSave = true|false;`
+- Added production-readiness test coverage (`ProductionReadinessTest`)
+- Added Composer `test` script
+- Added class-level PHP Attributes support as optional sugar:
+  - `#[Sanitize([...])]`
+  - `#[Generate([...])]`
+- Added clear rule priority resolution:
+  - model properties
+  - class-level attributes
+  - config defaults
+- Added `make:sanitizer` Artisan command for generating custom sanitizer classes
+- Added `make:generator` Artisan command for generating custom generator classes
+- Added test coverage for attributes, priority resolution, and make commands
+
+### Enhanced
+- Improved `decimal_only` sanitizer to normalize values with thousand separators
+- Improved `url` sanitizer to trim input, reject dangerous schemes, support protocol-relative URLs, and preserve safe explicit schemes
+- Improved `no_js` sanitizer with additional JavaScript-pattern cleanup
+- Improved sanitization flow for numeric casts so empty sanitized numeric values become `null`
+- Improved `sanitizeAttributes()` so malformed legacy decimal values can be recovered during re-sanitization
+- Renamed and modernized sanitizer rule names across the public API
+- Replaced alias `text:secure` with `text:plain`
+- Added and standardized `text:strict` pipeline
+- Updated sanitizer registry, aliases, docs, and tests to match the new public API naming
+- Updated README structure for faster onboarding and clearer production usage
+
+### Fixed
+- Fixed `sanigen:resanitize` failures on malformed decimal database values
+- Fixed Eloquent decimal cast exceptions caused by invalid stored decimal values
+- Fixed recovery path so existing invalid decimal rows can be sanitized and saved successfully
+
+### Removed
+- Removed output-encoding and escaping sanitizers from the public sanitizer API
+
 ## [1.4.0] - 2025-07-24
 
 ### Added

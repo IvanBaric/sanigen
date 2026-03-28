@@ -7,6 +7,7 @@ use Illuminate\Support\Facades\Config;
 use IvanBaric\Sanigen\SanigenServiceProvider;
 use Orchestra\Testbench\TestCase as BaseTestCase;
 
+// Shared package bootstrap for integration coverage.
 abstract class TestCase extends BaseTestCase
 {
     use RefreshDatabase;
