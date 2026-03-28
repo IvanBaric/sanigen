@@ -1,6 +1,5 @@
 {
   "name": "ivanbaric/sanigen",
-  "version": "1.0.0",
   "description": "Declarative sanitization and attribute generators for Eloquent models.",
   "type": "library",
   "license": "MIT",
