@@ -15,7 +15,7 @@ class PerformanceTestModel extends Model
         'trim_field',
         'squish_field',
         'strip_scripts_field',
-        'text_plain_field',
+        'text_field',
         'email_field',
     ];
 
@@ -23,7 +23,7 @@ class PerformanceTestModel extends Model
         'trim_field' => 'trim',
         'squish_field' => 'squish',
         'strip_scripts_field' => 'strip_scripts',
-        'text_plain_field' => 'text:plain',
-        'email_field' => 'email:clean',
+        'text_field' => 'text',
+        'email_field' => 'email',
     ];
 }

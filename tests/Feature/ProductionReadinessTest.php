@@ -35,7 +35,7 @@ test('all built in sanitizers resolve from registry', function () {
 });
 
 test('all configured aliases resolve from registry', function () {
-    foreach (array_keys(config('sanigen.sanitization_aliases', [])) as $alias) {
+    foreach (array_keys(config('sanigen.aliases', [])) as $alias) {
         expect(SanitizerRegistry::resolve($alias))->toBeInstanceOf(Sanitizer::class);
     }
 });
@@ -64,8 +64,8 @@ test('decimal sanitizer normalizes thousands separators for decimal casts', func
     ['1,234,567.89', '1234567.89'],
 ]);
 
-test('url secure alias rejects dangerous schemes', function (string $input) {
-    $sanitizer = SanitizerRegistry::resolve('url:secure');
+test('url alias rejects dangerous schemes', function (string $input) {
+    $sanitizer = SanitizerRegistry::resolve('url');
 
     expect($sanitizer->apply($input))->toBe('');
 })->with([

@@ -85,9 +85,8 @@ abstract class TestCase extends BaseTestCase
             $table->string('upper_field')->nullable();
             $table->string('url_field')->nullable();
             $table->string('strip_scripts_field')->nullable();
-            $table->string('text_plain_field')->nullable();
-            $table->string('text_strict_field')->nullable();
-            $table->string('text_title_field')->nullable();
+            $table->string('text_field')->nullable();
+            $table->string('title_field')->nullable();
             $table->string('priority_field')->nullable();
             $table->string('attr_only_field')->nullable();
             $table->string('config_only_field')->nullable();
@@ -102,7 +101,7 @@ abstract class TestCase extends BaseTestCase
             $table->text('trim_field')->nullable();
             $table->text('squish_field')->nullable();
             $table->text('strip_scripts_field')->nullable();
-            $table->text('text_plain_field')->nullable();
+            $table->text('text_field')->nullable();
             $table->text('email_field')->nullable();
             $table->timestamps();
         });

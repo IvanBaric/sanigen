@@ -5,7 +5,7 @@ All notable changes to the Sanigen package will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.5.0] - 2026-03-28
+## [1.6.0] - 2026-03-28
 
 ### Added
 - Added Laravel 13 support (`illuminate/support: ^12.0 || ^13.0`)
@@ -35,8 +35,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Improved sanitization flow for numeric casts so empty sanitized numeric values become `null`
 - Improved `sanitizeAttributes()` so malformed legacy decimal values can be recovered during re-sanitization
 - Renamed and modernized sanitizer rule names across the public API
-- Replaced alias `text:secure` with `text:plain`
-- Added and standardized `text:strict` pipeline
+- Standardized public aliases to the minimal output-based set: `text`, `title`, `ascii`, `email`, `url`, `slug`, `decimal`, `phone`
 - Updated sanitizer registry, aliases, docs, and tests to match the new public API naming
 - Updated README structure for faster onboarding and clearer production usage
 

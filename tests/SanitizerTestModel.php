@@ -32,9 +32,8 @@ class SanitizerTestModel extends Model
         'upper_field',
         'url_field',
         'strip_scripts_field',
-        'text_plain_field',
-        'text_strict_field',
-        'text_title_field',
+        'text_field',
+        'title_field',
         'priority_field',
         'attr_only_field',
         'config_only_field',
@@ -61,8 +60,7 @@ class SanitizerTestModel extends Model
         'upper_field' => 'upper',
         'url_field' => 'url',
         'strip_scripts_field' => 'strip_scripts',
-        'text_plain_field' => 'text:plain',
-        'text_strict_field' => 'text:strict',
-        'text_title_field' => 'text:title',
+        'text_field' => 'text',
+        'title_field' => 'title',
     ];
 }

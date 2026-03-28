@@ -51,7 +51,7 @@ class SanitizerRegistry
 
     public static function resolve(string $key): ?Sanitizer
     {
-        $aliases = config('sanigen.sanitization_aliases', []);
+        $aliases = config('sanigen.aliases', []);
 
         if (isset($aliases[$key])) {
             return new class($aliases[$key]) implements Sanitizer

@@ -51,16 +51,16 @@ test('renamed sanitizer rules are applied through model property api', function 
     expect($model->strip_scripts_field)->toBe('safe');
 });
 
-test('text aliases apply plain and strict modes', function () {
+test('configured aliases apply the expected pipelines', function () {
     $model = new SanitizerTestModel;
-    $model->text_plain_field = "<p>Hello \u{1F44B}</p><script>alert(1)</script>   World";
-    $model->text_strict_field = "<p>Caf\u{00E9} \u{1F44B}</p><script>alert(1)</script>   \u{017D}";
-    $model->text_title_field = "<script>alert(1)</script>  HELLO   WORLD  \u{1F600}";
+    $model->text_field = "<p>Hello \u{1F44B}</p><script>alert(1)</script>   World";
+    $model->ascii_field = "<p>Caf\u{00E9} \u{1F44B}</p><script>alert(1)</script>   \u{017D}";
+    $model->title_field = "<script>alert(1)</script>  HELLO   WORLD  \u{1F600}";
     $model->save();
 
-    expect($model->text_plain_field)->toBe('Hello World');
-    expect($model->text_strict_field)->toBe('Caf');
-    expect($model->text_title_field)->toBe('Hello world');
+    expect($model->text_field)->toBe('Hello World');
+    expect($model->ascii_field)->toBe('Caf');
+    expect($model->title_field)->toBe('Hello world');
 });
 
 test('strip_scripts removes suspicious javascript patterns', function () {

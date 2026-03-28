@@ -4,8 +4,7 @@
 [![Total Downloads](https://img.shields.io/packagist/dt/ivanbaric/sanigen.svg?style=flat-square)](https://packagist.org/packages/ivanbaric/sanigen)
 [![License](https://img.shields.io/packagist/l/ivanbaric/sanigen.svg?style=flat-square)](https://packagist.org/packages/ivanbaric/sanigen)
 
-Sanigen provides declarative sanitization/normalization and attribute generators for Eloquent models, for teams that want consistency and less repetitive input-cleanup code.
-Version 1.5.0 consolidates the current API, generator tooling, and attribute-based configuration model.
+Sanigen provides declarative sanitization and attribute generators for Eloquent models, so teams can keep input cleanup consistent without repeating pipelines across models.
 
 ## Quick Start
 
@@ -19,23 +18,25 @@ Recommended: publish the config file.
 php artisan vendor:publish --provider="IvanBaric\Sanigen\SanigenServiceProvider" --tag="config"
 ```
 
-Define or refine aliases in `config/sanigen.php`, then reuse the same sanitization standards across all your models.
+Define aliases in `config/sanigen.php`, then reuse the same defaults across your models.
 
 ```php
-'sanitization_aliases' => [
-    'text:title' => 'strip_html|strip_scripts|strip_emoji|strip_newlines|trim|squish|lower|ucfirst',
-    'text:plain' => 'strip_html|strip_scripts|strip_emoji|strip_newlines|trim|squish',
-    'text:strict' => 'strip_html|strip_scripts|strip_emoji|strip_newlines|ascii|trim|squish',
-    'email:clean' => 'trim|lower|email',
-    'url:secure' => 'trim|strip_newlines|strip_scripts|url',
-    'number:decimal' => 'trim|decimal',
+'aliases' => [
+    'text' => 'strip_html|strip_scripts|strip_emoji|strip_newlines|trim|squish',
+    'title' => 'strip_html|strip_scripts|strip_emoji|strip_newlines|trim|squish|lower|ucfirst',
+    'ascii' => 'strip_html|strip_scripts|strip_emoji|strip_newlines|trim|squish|ascii',
+    'email' => 'trim|lower|email',
+    'url' => 'trim|strip_newlines|strip_scripts|url',
+    'slug' => 'trim|lower|slug',
+    'decimal' => 'trim|decimal',
+    'phone' => 'trim|phone_clean',
 ];
 ```
 
 Sanigen gives you two model properties:
 
 - `$sanitize`: applies sanitizer aliases from `config/sanigen.php`
-- `$generate`: fills empty attributes on `creating` using generator rules (see **Built-in generators** below)
+- `$generate`: fills empty attributes on `creating` using generator rules
 
 ```php
 use Illuminate\Database\Eloquent\Model;
@@ -45,17 +46,20 @@ class Post extends Model
 {
     use Sanigen;
 
-    protected $fillable = ['title', 'content', 'email', 'website'];
+    protected $fillable = ['name', 'description', 'email', 'website', 'slug', 'price', 'phone'];
 
     protected array $sanitize = [
-        'title' => 'text:title',
-        'content' => 'text:strict',
-        'email' => 'email:clean',
-        'website' => 'url:secure',
+        'name' => 'title',
+        'description' => 'text',
+        'email' => 'email',
+        'website' => 'url',
+        'slug' => 'slug',
+        'price' => 'decimal',
+        'phone' => 'phone',
     ];
 
     protected array $generate = [
-        'slug' => 'slugify:title',
+        'slug' => 'slugify:name',
         'uuid' => 'uuid',
         'owner_id' => 'user:id',
         'team_id' => 'user:current_team_id',
@@ -65,10 +69,12 @@ class Post extends Model
 
 ```php
 $post = Post::create([
-    'title' => '  <script>alert(1)</script>my FIRST post  ',
-    'content' => '<script>alert(1)</script><p>Hello <strong>world</strong></p>',
+    'name' => '  <script>alert(1)</script>my FIRST post  ',
+    'description' => '<script>alert(1)</script><p>Hello <strong>world</strong></p>',
     'email' => ' USER@EXAMPLE.COM ',
     'website' => 'example.com',
+    'price' => ' EUR 1,234.56 ',
+    'phone' => ' +1 (123) 456-7890 ',
 ]);
 ```
 
@@ -79,15 +85,28 @@ Result:
     'uuid' => '550e8400-e29b-41d4-a716-446655440000',
     'owner_id' => 1,
     'team_id' => 42,
-    'title' => 'My first post',
-    'slug' => 'my-first-post',
-    'content' => 'Hello world',
+    'name' => 'My first post',
+    'description' => 'Hello world',
     'email' => 'user@example.com',
     'website' => 'https://example.com',
+    'slug' => 'my-first-post',
+    'price' => '1234.56',
+    'phone' => '+11234567890',
 ]
 ```
 
-## Class-Level Attributes (Optional)
+## Available Aliases
+
+- `text`: generic cleaned text
+- `title`: cleaned title-style text
+- `ascii`: cleaned ASCII-only text
+- `email`: normalized email
+- `url`: normalized URL
+- `slug`: slug-ready value
+- `decimal`: normalized decimal number
+- `phone`: normalized phone number
+
+## Class-Level Attributes
 
 Besides model properties, you can use class-level attributes:
 
@@ -96,12 +115,12 @@ use IvanBaric\Sanigen\Attributes\Generate;
 use IvanBaric\Sanigen\Attributes\Sanitize;
 
 #[Sanitize([
-    'title' => 'text:plain',
-    'excerpt' => 'text:strict',
-    'email' => 'email:clean',
+    'name' => 'title',
+    'description' => 'text',
+    'email' => 'email',
 ])]
 #[Generate([
-    'slug' => 'slugify:title',
+    'slug' => 'slugify:name',
     'uuid' => 'uuid',
 ])]
 class Post extends Model
@@ -113,9 +132,7 @@ class Post extends Model
 Rule priority is:
 
 1. explicit model properties (`$sanitize`, `$generate`)
-
 2. class-level attributes (`#[Sanitize]`, `#[Generate]`)
-
 3. config defaults (`sanitize_defaults`, `generate_defaults`)
 
 ## Full Reference
@@ -133,8 +150,8 @@ Rule priority is:
 | `strip_newlines` | Removes all line breaks | `"Line 1\nLine 2"` -> `"Line 1Line 2"` |
 | `strip_html` | Removes all HTML tags | `"<p>Hello</p>"` -> `"Hello"` |
 | `strip_tags` | Removes HTML tags except allowed ones | `"<script>Hello</script>"` -> `"Hello"` |
-| `strip_scripts` | Removes common script-bearing markup, inline JS handlers, dangerous protocols, and suspicious JS patterns from text input. | `"<script>alert(1)</script>Hello"` -> `"Hello"` |
-| `strip_emoji` | Removes all emoji characters | `"Hello 👋 World 🌍"` -> `"Hello  World "` |
+| `strip_scripts` | Removes script-bearing markup, inline JS handlers, dangerous protocols, and suspicious JS patterns | `"<script>alert(1)</script>Hello"` -> `"Hello"` |
+| `strip_emoji` | Removes emoji characters | `"Hello 👋 World 🌍"` -> `"Hello  World "` |
 | `alpha` | Keeps only letters | `"Hello123"` -> `"Hello"` |
 | `alnum` | Keeps only letters and numbers | `"Hello123!"` -> `"Hello123"` |
 | `alpha_dash` | Keeps letters, numbers, hyphens, underscores | `"Hello-123_!"` -> `"Hello-123_"` |
@@ -144,7 +161,7 @@ Rule priority is:
 | `email` | Sanitizes email addresses | `" USER@EXAMPLE.COM "` -> `"user@example.com"` |
 | `phone_clean` | Sanitizes phone numbers | `"(123) 456-7890"` -> `"+1234567890"` |
 | `url` | Ensures URLs have a protocol | `"example.com"` -> `"https://example.com"` |
-| `slug` | Creates URL-friendly slug | `"Hello World"` -> `"hello-world"` |
+| `slug` | Creates a URL-friendly slug | `"Hello World"` -> `"hello-world"` |
 
 </details>
 
@@ -200,8 +217,6 @@ use IvanBaric\Sanigen\Registries\SanitizerRegistry;
 SanitizerRegistry::register('username', \App\Sanitizers\UsernameSanitizer::class);
 ```
 
-Register custom sanitizers in a service provider, typically in `App\Providers\AppServiceProvider` (either `register()` or `boot()`), or in your own dedicated provider.
-
 Use it:
 
 ```php
@@ -244,8 +259,6 @@ use IvanBaric\Sanigen\Registries\GeneratorRegistry;
 GeneratorRegistry::register('coupon_code', \App\Generators\CouponCodeGenerator::class);
 ```
 
-Register custom generators in a service provider, typically in `App\Providers\AppServiceProvider` (either `register()` or `boot()`), or in your own dedicated provider.
-
 Use it:
 
 ```php
@@ -258,7 +271,7 @@ protected $generate = [
 
 ## Resanitize Existing Rows
 
-Warning: this command updates existing database records. Run it on a backup-aware deployment path, test it on staging first, and choose a conservative `--chunk` size for large tables.
+Warning: this command updates existing database records. Run it on a backup-aware deployment path and test it on staging first.
 
 ```bash
 php artisan sanigen:resanitize "App\Models\Post" --chunk=200
@@ -266,60 +279,27 @@ php artisan sanigen:resanitize "App\Models\Post" --chunk=200
 
 ## Production Notes
 
-<details>
-<summary>Useful config options</summary>
-
 ```php
 return [
     'enabled' => true,
-    'missing_sanitizer' => 'throw', // throw, ignore, log
+    'missing_sanitizer' => 'throw',
+    'aliases' => [
+        'text' => 'strip_html|strip_scripts|strip_emoji|strip_newlines|trim|squish',
+        'title' => 'strip_html|strip_scripts|strip_emoji|strip_newlines|trim|squish|lower|ucfirst',
+        'ascii' => 'strip_html|strip_scripts|strip_emoji|strip_newlines|trim|squish|ascii',
+        'email' => 'trim|lower|email',
+        'url' => 'trim|strip_newlines|strip_scripts|url',
+        'slug' => 'trim|lower|slug',
+        'decimal' => 'trim|decimal',
+        'phone' => 'trim|phone_clean',
+    ],
     'allowed_html_tags' => '<p><strong><em><a><ul><ol><li><br>',
     'encoding' => 'UTF-8',
     'max_strip_scripts_input_length' => 32768,
     'sanitize_defaults' => [],
     'generate_defaults' => [],
-    'generator_settings' => [
-        'slugify' => [
-            'suffix_type' => 'increment', // increment, date, uuid
-            'slug_updates_on_save' => false,
-            'date_format' => 'd-m-Y',
-        ],
-    ],
 ];
 ```
-
-Why these matter:
-
-- `enabled`: turn the package on or off globally
-
-- `missing_sanitizer`: fail fast in development, or `log` / `ignore` in production if you prefer softer behavior
-
-- `allowed_html_tags`: whitelist formatting tags for `strip_tags` and `strip_scripts`
-
-- `max_strip_scripts_input_length`: caps very large payloads before running `strip_scripts`
-
-- `sanitize_defaults` / `generate_defaults`: lowest-priority fallback rules
-
-- `slug_updates_on_save`: keep `false` if you want stable URLs, enable it if slugs should follow title changes
-
-You can also override slug update behavior per model:
-
-```php
-class Post extends Model
-{
-    use Sanigen;
-
-    protected bool $slugUpdatesOnSave = true;
-
-    protected $generate = [
-        'slug' => 'slugify:title',
-    ];
-}
-```
-
-Per-model override wins over the global config.
-
-</details>
 
 ## Spatie Translatable Support
 
@@ -327,28 +307,14 @@ Sanigen works with Spatie Laravel Translatable because translatable attributes a
 
 ## Limitations
 
-Sanigen only works when data goes through an Eloquent model instance.
-
-Simple rule: if data goes through `$model`, Sanigen runs. If data goes straight to the database, it does not.
+Sanigen only runs when data goes through an Eloquent model instance.
 
 ## Tests
-
-Run the package test suite before release:
 
 ```bash
 composer test
 ```
 
-## Contributing
-
-Pull requests are welcome.
-
 ## License
 
 MIT. See [LICENSE.md](LICENSE.md).
-
-## Support
-
-If Sanigen saves you time, you can support the project here:
-
-[![Buy Me A Coffee](https://www.buymeacoffee.com/assets/img/custom_images/orange_img.png)](https://coff.ee/ivanbaric)
