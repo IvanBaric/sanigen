@@ -3,25 +3,11 @@
 namespace IvanBaric\Sanigen\Traits;
 
 use IvanBaric\Sanigen\Registries\SanitizerRegistry;
+use IvanBaric\Sanigen\Resolvers\ModelRuleResolver;
+use Throwable;
 
-/**
- * Provides automatic sanitization for model attributes.
- * 
- * This trait allows models to define a $sanitize property that maps attributes
- * to sanitizer rules. When a model is being updated, the specified sanitizers
- * will be applied to the attribute values.
- * 
- * It also supports array values like those used by Spatie's translatable package,
- * where translations are stored as arrays (e.g., $name['hr'] = "<script>alert("xss")</script>smart").
- * In this case, each translation will be sanitized individually.
- */
 trait HasSanitization
 {
-    /**
-     * Numeric cast types that cannot accept empty strings.
-     *
-     * @var array<int, string>
-     */
     protected array $sanigenNumericCastTypes = [
         'int',
         'integer',
@@ -32,130 +18,109 @@ trait HasSanitization
     ];
 
     /**
-     * Sanitize a single attribute value based on defined rules.
-     *
-     * @param string $key The attribute name
-     * @param mixed $value The attribute value
-     * @return mixed The sanitized value or original value if sanitization is not applicable
-     * 
-     * This method handles both scalar values and arrays (like those used by Spatie's translatable package).
-     * For array values, each element will be sanitized individually using the same rules.
+     * @return array<string, string>
      */
-    protected function sanitizeAttribute($key, $value)
+    protected function getSanigenSanitizeRules(): array
     {
-        // Skip sanitization if disabled, value is null, or no rules exist
-        if (config('sanigen.enabled', true) === false || 
-            $value === null || 
-            !property_exists($this, 'sanitize') || 
-            !isset($this->sanitize[$key])) {
+        return ModelRuleResolver::sanitizeRules($this);
+    }
+
+    protected function sanitizeAttribute(string $key, mixed $value): mixed
+    {
+        if (config('sanigen.enabled', true) === false || $value === null) {
             return $value;
         }
-        
-        // Handle array values (like Spatie translatable fields)
+
+        $rules = $this->getSanigenSanitizeRules();
+        $ruleSet = $rules[$key] ?? null;
+
+        if (! is_string($ruleSet) || $ruleSet === '') {
+            return $value;
+        }
+
         if (is_array($value)) {
             $sanitizedArray = [];
+
             foreach ($value as $locale => $localeValue) {
-                $sanitizedArray[$locale] = $this->sanitizeValue($key, $localeValue);
+                $sanitizedArray[$locale] = $this->sanitizeValue($key, $localeValue, $ruleSet);
             }
+
             return $sanitizedArray;
         }
-        
-        // For scalar values, sanitize directly
-        return $this->sanitizeValue($key, $value);
+
+        return $this->sanitizeValue($key, $value, $ruleSet);
     }
-    
-    /**
-     * Sanitize a single value based on the rules for a given attribute.
-     *
-     * @param string $key The attribute name (for rules lookup)
-     * @param mixed $value The value to sanitize
-     * @return mixed The sanitized value or original value if sanitization is not applicable
-     */
-    protected function sanitizeValue($key, $value)
+
+    protected function sanitizeValue(string $key, mixed $value, string $ruleSet): mixed
     {
-        // Only sanitize scalar values that can be converted to strings
-        if (!is_scalar($value)) {
+        if (! is_scalar($value)) {
             return $value;
         }
-        
+
         try {
-            $rules = explode('|', $this->sanitize[$key]);
-            
-            // Convert to string for sanitization
             $stringValue = (string) $value;
-            
-            // Apply each sanitizer in the pipe-delimited rules
-            foreach ($rules as $rule) {
+
+            foreach (explode('|', $ruleSet) as $rule) {
+                $rule = trim($rule);
+                if ($rule === '') {
+                    continue;
+                }
+
                 $sanitizer = SanitizerRegistry::resolve($rule);
                 if ($sanitizer) {
                     $stringValue = $sanitizer->apply($stringValue);
                 }
             }
 
-            // Avoid decimal / numeric cast exceptions caused by empty string values.
             if ($stringValue === '' && $this->hasSanigenNumericCast($key)) {
                 return null;
             }
 
             return $stringValue;
         } catch (\InvalidArgumentException $e) {
-            // Re-throw InvalidArgumentException for non-existent sanitizers
             throw $e;
-        } catch (\Exception $e) {
-            // Log other errors but continue with the original value
+        } catch (Throwable $e) {
             if (function_exists('logger')) {
-                logger()->error("Sanitization failed for attribute {$key}: " . $e->getMessage());
+                logger()->error("Sanitization failed for attribute {$key}: ".$e->getMessage());
             }
+
             return $value;
         }
     }
 
-    /**
-     * Sanitize all attributes based on defined rules.
-     * 
-     * This method applies sanitization rules to all attributes defined in the $sanitize property.
-     * It returns true if any attributes were modified during sanitization.
-     * 
-     * It handles both scalar values and arrays (like those used by Spatie's translatable package),
-     * applying sanitization to each array element individually.
-     *
-     * @return bool Whether any attributes were modified
-     */
     public function sanitizeAttributes(): bool
     {
-        if (config('sanigen.enabled', true) === false || 
-            !property_exists($this, 'sanitize') || 
-            empty($this->sanitize)) {
+        if (config('sanigen.enabled', true) === false) {
             return false;
         }
-        
+
+        $rules = $this->getSanigenSanitizeRules();
+
+        if ($rules === []) {
+            return false;
+        }
+
         $updated = false;
-        
-        foreach ($this->sanitize as $attribute => $rules) {
+
+        foreach ($rules as $attribute => $_ruleSet) {
             $usedRawFallback = false;
 
             try {
                 $originalValue = $this->{$attribute};
-            } catch (\Throwable $e) {
-                // Some invalid legacy values can fail during cast access (e.g. malformed decimal strings).
-                // Fallback to raw value so resanitize can recover and persist a corrected value.
+            } catch (Throwable $e) {
                 $originalValue = $this->getRawOriginal($attribute);
                 $usedRawFallback = true;
             }
-            
-            // Skip null values
+
             if ($originalValue === null) {
                 continue;
             }
-            
-            // Process both scalar values and arrays (like Spatie translatable fields)
+
             $sanitizedValue = $this->sanitizeAttribute($attribute, $originalValue);
-            
-            // Only update if the value has changed
+
             if ($sanitizedValue !== $originalValue) {
                 $this->{$attribute} = $sanitizedValue;
 
-                // Prevent dirty-check cast failures when the original snapshot contains invalid legacy data.
                 if ($usedRawFallback) {
                     $this->original[$attribute] = null;
                 }
@@ -163,20 +128,14 @@ trait HasSanitization
                 $updated = true;
             }
         }
-        
+
         return $updated;
     }
 
-    /**
-     * Determine whether the given attribute has a numeric cast.
-     *
-     * @param string $key
-     * @return bool
-     */
     protected function hasSanigenNumericCast(string $key): bool
     {
         $cast = $this->getCasts()[$key] ?? null;
-        if (!is_string($cast) || $cast === '') {
+        if (! is_string($cast) || $cast === '') {
             return false;
         }
 
@@ -185,25 +144,12 @@ trait HasSanitization
         return in_array($castType, $this->sanigenNumericCastTypes, true);
     }
 
-    /**
-     * Set a given attribute on the model.
-     *
-     * This method overrides the default Laravel setAttribute method to apply
-     * sanitization rules before the value is cast and saved.
-     *
-     * @param string $key The attribute name
-     * @param mixed $value The attribute value
-     * @return mixed
-     */
     public function setAttribute($key, $value)
     {
-        // Apply sanitization if applicable
-        $value = $this->sanitizeAttribute($key, $value);
-        
-        // Continue with the original Laravel setAttribute
+        if (is_string($key)) {
+            $value = $this->sanitizeAttribute($key, $value);
+        }
+
         return parent::setAttribute($key, $value);
     }
-
-
-
 }

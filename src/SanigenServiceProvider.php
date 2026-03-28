@@ -3,6 +3,8 @@
 namespace IvanBaric\Sanigen;
 
 use Illuminate\Support\ServiceProvider;
+use IvanBaric\Sanigen\Console\Commands\MakeGeneratorCommand;
+use IvanBaric\Sanigen\Console\Commands\MakeSanitizerCommand;
 use IvanBaric\Sanigen\Console\Commands\ResanitizeCommand;
 
 /**
@@ -32,6 +34,8 @@ class SanigenServiceProvider extends ServiceProvider
         if ($this->app->runningInConsole()) {
             $this->commands([
                 ResanitizeCommand::class,
+                MakeSanitizerCommand::class,
+                MakeGeneratorCommand::class,
             ]);
         }
     }

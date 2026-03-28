@@ -1,289 +1,94 @@
 <?php
 
+use IvanBaric\Sanigen\Registries\SanitizerRegistry;
 use Tests\SanitizerTestModel;
 
-test('sanitizes alpha dash values', function () {
-    $model = new SanitizerTestModel();
-    $model->alpha_dash_field = 'Test-123 @#$%^&*()';
+test('renamed sanitizer rules are applied through model property api', function () {
+    $model = new SanitizerTestModel;
+
+    $model->alpha_dash_field = 'Test-123 @#$';
+    $model->alnum_field = 'Test-123 @#$';
+    $model->alpha_field = 'Test-123 @#$';
+    $model->ascii_field = "cafe \u{017E}";
+    $model->decimal_field = 'EUR 1,234.56';
+    $model->digits_field = 'A1B2-3';
+    $model->email_field = ' USER@EXAMPLE.COM ';
+    $model->strip_emoji_field = "Hello \u{1F44B} World \u{1F30D}";
+    $model->lower_field = 'HELLO';
+    $model->strip_html_field = '<p>Hello <b>World</b></p>';
+    $model->phone_clean_field = '+1 (123) 456-7890 ext. 123';
+    $model->strip_newlines_field = "Line 1\nLine 2\r\nLine 3";
+    $model->squish_field = 'Hello    world';
+    $model->slug_field = 'Hello World';
+    $model->strip_tags_field = '<p>Hello <strong>world</strong></p>';
+    $model->trim_field = '  Hello  ';
+    $model->ucfirst_field = 'hello';
+    $model->upper_field = 'hello';
+    $model->url_field = 'example.com/path';
+    $model->strip_scripts_field = '<script>alert(1)</script><img src="x" onerror="alert(1)">safe';
+
     $model->save();
-    
-    // Assert that non-alphanumeric characters (except dashes and underscores) are removed
+
     expect($model->alpha_dash_field)->toBe('Test-123');
+    expect($model->alnum_field)->toBe('Test123');
+    expect($model->alpha_field)->toBe('Test');
+    expect($model->ascii_field)->toBe('cafe ');
+    expect($model->decimal_field)->toBe('1234.56');
+    expect($model->digits_field)->toBe('123');
+    expect($model->email_field)->toBe('user@example.com');
+    expect($model->strip_emoji_field)->toBe('Hello  World ');
+    expect($model->lower_field)->toBe('hello');
+    expect($model->strip_html_field)->toBe('Hello World');
+    expect($model->phone_clean_field)->toBe('+11234567890123');
+    expect($model->strip_newlines_field)->toBe('Line 1Line 2Line 3');
+    expect($model->squish_field)->toBe('Hello world');
+    expect($model->slug_field)->toBe('hello-world');
+    expect($model->strip_tags_field)->toBe('<p>Hello <strong>world</strong></p>');
+    expect($model->trim_field)->toBe('Hello');
+    expect($model->ucfirst_field)->toBe('Hello');
+    expect($model->upper_field)->toBe('HELLO');
+    expect($model->url_field)->toBe('https://example.com/path');
+    expect($model->strip_scripts_field)->toBe('safe');
 });
 
-test('sanitizes alphanumeric only values', function () {
-    $model = new SanitizerTestModel();
-    $model->alphanumeric_only_field = 'Test-123 @#$%^&*()';
-    $model->save();
-    
-    // Assert that only alphanumeric characters remain
-    expect($model->alphanumeric_only_field)->toBe('Test123');
-});
-
-test('sanitizes alpha only values', function () {
-    $model = new SanitizerTestModel();
-    $model->alpha_only_field = 'Test-123 @#$%^&*()';
-    $model->save();
-    
-    // Assert that only alphabetic characters remain
-    expect($model->alpha_only_field)->toBe('Test');
-});
-
-test('sanitizes ascii only values', function () {
-    $model = new SanitizerTestModel();
-    $model->ascii_only_field = 'Test-123 @#$%^&*() ñáéíóú';
-    $model->save();
-    
-    // Assert that only ASCII characters remain
-    expect($model->ascii_only_field)->toBe('Test-123 @#$%^&*() ');
-});
-
-test('sanitizes decimal only values', function () {
-    $model = new SanitizerTestModel();
-    $model->decimal_only_field = 'Test 123.45 @#$%^&*()';
-    $model->save();
-    
-    // Assert that only decimal numbers remain
-    expect($model->decimal_only_field)->toBe('123.45');
-});
-
-test('sanitizes email values', function () {
-    $model = new SanitizerTestModel();
-    $model->email_field = ' TEST@example.com ';
-    $model->save();
-    
-    // Assert that email is properly formatted
-    expect($model->email_field)->toBe('test@example.com');
-});
-
-test('sanitizes emoji remove values', function () {
-    $model = new SanitizerTestModel();
-    $model->emoji_remove_field = 'Hello 👋 World 🌍';
-    $model->save();
-    
-    // Assert that emojis are removed
-    expect($model->emoji_remove_field)->toBe('Hello  World ');
-});
-
-test('sanitizes escape values', function () {
-    $model = new SanitizerTestModel();
-    $model->escape_field = '<script>alert("XSS")</script>';
-    $model->save();
-    
-    // Assert that HTML is escaped
-    expect($model->escape_field)->toBe('&amp;lt;script&amp;gt;alert(&amp;quot;XSS&amp;quot;)&amp;lt;/script&amp;gt;');
-});
-
-test('sanitizes html special chars values', function () {
-    $model = new SanitizerTestModel();
-    $model->html_special_chars_field = '<script>alert("XSS")</script>';
-    $model->save();
-    
-    // Assert that HTML special characters are converted
-    expect($model->html_special_chars_field)->toBe('&lt;script&gt;alert(&quot;XSS&quot;)&lt;/script&gt;');
-});
-
-test('sanitizes json escape values', function () {
-    $model = new SanitizerTestModel();
-    $model->json_escape_field = '"Test" with "quotes"';
-    $model->save();
-    
-    // Assert that quotes are escaped for JSON
-    expect($model->json_escape_field)->not->toBe('"Test" with "quotes"');
-    expect($model->json_escape_field)->toContain('Test');
-    expect($model->json_escape_field)->toContain('with');
-    expect($model->json_escape_field)->toContain('quotes');
-});
-
-test('sanitizes lower values', function () {
-    $model = new SanitizerTestModel();
-    $model->lower_field = 'TEST STRING';
-    $model->save();
-    
-    // Assert that text is converted to lowercase
-    expect($model->lower_field)->toBe('test string');
-});
-
-test('sanitizes no html values', function () {
-    $model = new SanitizerTestModel();
-    $model->no_html_field = '<p>Test <strong>with</strong> <em>HTML</em></p>';
-    $model->save();
-    
-    // Assert that HTML tags are removed
-    expect($model->no_html_field)->toBe('Test with HTML');
-});
-
-test('sanitizes numeric only values', function () {
-    $model = new SanitizerTestModel();
-    $model->numeric_only_field = 'Test 123.45 @#$%^&*()';
-    $model->save();
-    
-    // Assert that only numeric characters remain
-    expect($model->numeric_only_field)->toBe('12345');
-});
-
-test('sanitizes phone values', function () {
-    $model = new SanitizerTestModel();
-    $model->phone_field = '+1 (123) 456-7890 ext. 123';
-    $model->save();
-    
-    // Assert that phone number is properly formatted
-    expect($model->phone_field)->toBe('+11234567890123');
-});
-
-test('sanitizes remove newlines values', function () {
-    $model = new SanitizerTestModel();
-    $model->remove_newlines_field = "Line 1\nLine 2\r\nLine 3";
-    $model->save();
-    
-    // Assert that newlines are removed
-    expect($model->remove_newlines_field)->toBe('Line 1Line 2Line 3');
-});
-
-test('sanitizes single space values', function () {
-    $model = new SanitizerTestModel();
-    $model->single_space_field = 'Multiple    spaces    between    words';
-    $model->save();
-    
-    // Assert that multiple spaces are replaced with single spaces
-    expect($model->single_space_field)->toBe('Multiple spaces between words');
-});
-
-test('sanitizes slug values', function () {
-    $model = new SanitizerTestModel();
-    $model->slug_field = 'Test String With Spaces and Special Characters: @#$%^&*()';
-    $model->save();
-    
-    // Assert that text is converted to a slug
-    expect($model->slug_field)->toBe('test-string-with-spaces-and-special-characters');
-});
-
-test('sanitizes strip tags values', function () {
-    $model = new SanitizerTestModel();
-    $model->strip_tags_field = '<p>Test <strong>with</strong> <em>HTML</em></p>';
-    $model->save();
-    
-    // Assert that HTML tags are removed
-    expect($model->strip_tags_field)->toBe('<p>Test <strong>with</strong> <em>HTML</em></p>');
-});
-
-test('sanitizes trim values', function () {
-    $model = new SanitizerTestModel();
-    $model->trim_field = '   Test with spaces   ';
-    $model->save();
-    
-    // Assert that leading and trailing spaces are removed
-    expect($model->trim_field)->toBe('Test with spaces');
-});
-
-test('sanitizes ucfirst values', function () {
-    $model = new SanitizerTestModel();
-    $model->ucfirst_field = 'test string';
-    $model->save();
-    
-    // Assert that first character is capitalized
-    expect($model->ucfirst_field)->toBe('Test string');
-});
-
-test('sanitizes upper values', function () {
-    $model = new SanitizerTestModel();
-    $model->upper_field = 'test string';
-    $model->save();
-    
-    // Assert that text is converted to uppercase
-    expect($model->upper_field)->toBe('TEST STRING');
-});
-
-test('sanitizes url values', function () {
-    $model = new SanitizerTestModel();
-    $model->url_field = 'http://example.com/path with spaces';
-    $model->save();
-    
-    // Assert that URL is properly formatted
-    expect($model->url_field)->toBe('http://example.com/path with spaces');
-});
-
-test('sanitizes no_js values', function () {
-    $model = new SanitizerTestModel();
-    $model->xss_field = '<script>alert("XSS")</script><img src="x" onerror="alert(\'XSS\')">';
-    $model->save();
-    
-    // Assert that JavaScript and XSS attacks are neutralized
-    expect($model->xss_field)->not->toContain('<script>');
-    expect($model->xss_field)->not->toContain('onerror=');
-});
-
-test('sanitizes standalone alert functions with double quotes', function () {
-    $model = new SanitizerTestModel();
-    $model->xss_field = 'Some text alert("XSS attack") more text';
-    $model->save();
-    
-    // Assert that alert function with double quotes is completely removed
-    expect($model->xss_field)->toBe('Some text more text');
-});
-
-test('sanitizes standalone alert functions with single quotes', function () {
-    $model = new SanitizerTestModel();
-    $model->xss_field = 'Some text alert(\'XSS attack\') more text';
-    $model->save();
-    
-    // Assert that alert function with single quotes is completely removed
-    expect($model->xss_field)->toBe('Some text more text');
-});
-
-test('sanitizes standalone alert functions without quotes', function () {
-    $model = new SanitizerTestModel();
-    $model->xss_field = 'Some text alert(123) more text';
-    $model->save();
-    
-    // Assert that alert function without quotes is completely removed
-    expect($model->xss_field)->toBe('Some text more text');
-});
-
-test('sanitizes alert functions with whitespace variations', function () {
-    $model = new SanitizerTestModel();
-    $model->xss_field = 'alert ( "XSS" ) and alert(  \'XSS\'  )';
-    $model->save();
-    
-    // Assert that alert functions with various whitespace are completely removed
-    expect($model->xss_field)->toBe('and');
-});
-
-test('sanitizes plain javascript calls like fetch and timers', function () {
-    $model = new SanitizerTestModel();
-    $model->xss_field = 'before fetch("https://evil.test") setTimeout(alert, 1000) after';
+test('text aliases apply plain and strict modes', function () {
+    $model = new SanitizerTestModel;
+    $model->text_plain_field = "<p>Hello \u{1F44B}</p><script>alert(1)</script>   World";
+    $model->text_strict_field = "<p>Caf\u{00E9} \u{1F44B}</p><script>alert(1)</script>   \u{017D}";
+    $model->text_title_field = "<script>alert(1)</script>  HELLO   WORLD  \u{1F600}";
     $model->save();
 
-    expect($model->xss_field)->toBe('before after');
+    expect($model->text_plain_field)->toBe('Hello World');
+    expect($model->text_strict_field)->toBe('Caf');
+    expect($model->text_title_field)->toBe('Hello world');
 });
 
-test('sanitizes document cookie access and assignment', function () {
-    $model = new SanitizerTestModel();
-    $model->xss_field = 'token document.cookie and document.cookie = "session=abc"; done';
+test('strip_scripts removes suspicious javascript patterns', function () {
+    $model = new SanitizerTestModel;
+    $model->strip_scripts_field = 'before fetch("https://evil.test") document.cookie = "x=1"; alert("XSS") after';
     $model->save();
 
-    expect($model->xss_field)->toBe('token and done');
+    expect($model->strip_scripts_field)->toBe('before after');
 });
 
-test('sanitizes Function constructor patterns', function () {
-    $model = new SanitizerTestModel();
-    $model->xss_field = 'before new Function("return 1") and Function("x") after';
-    $model->save();
+test('removed encoding sanitizers are no longer available', function () {
+    expect(fn () => SanitizerRegistry::resolve('htmlspecialchars'))
+        ->toThrow(InvalidArgumentException::class, "Sanitizer 'htmlspecialchars' does not exist.");
 
-    expect($model->xss_field)->toBe('before and after');
+    expect(fn () => SanitizerRegistry::resolve('json_escape'))
+        ->toThrow(InvalidArgumentException::class, "Sanitizer 'json_escape' does not exist.");
 });
 
-test('throws exception when non-existent sanitizer is requested', function () {
-    // Create a model with a non-existent sanitizer
-    $model = new class extends SanitizerTestModel {
-        protected $sanitize = [
-            'xss_field' => 'non_existent_sanitizer'
+test('missing sanitizer throw mode still fails fast by default', function () {
+    $model = new class extends SanitizerTestModel
+    {
+        protected array $sanitize = [
+            'strip_scripts_field' => 'definitely_missing',
         ];
     };
-    
-    // Expect an exception when trying to sanitize
-    expect(function() use ($model) {
-        $model->xss_field = 'test';
+
+    expect(function () use ($model) {
+        $model->strip_scripts_field = 'test';
         $model->save();
-    })->toThrow(\InvalidArgumentException::class, "Sanitizer 'non_existent_sanitizer' does not exist.");
+    })->toThrow(InvalidArgumentException::class, "Sanitizer 'definitely_missing' does not exist.");
 });

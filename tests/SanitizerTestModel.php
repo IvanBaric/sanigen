@@ -8,58 +8,61 @@ use IvanBaric\Sanigen\Traits\Sanigen;
 class SanitizerTestModel extends Model
 {
     use Sanigen;
-    
+
     protected $table = 'sanitizer_test_models';
+
     protected $fillable = [
         'alpha_dash_field',
-        'alphanumeric_only_field',
-        'alpha_only_field',
-        'ascii_only_field',
-        'decimal_only_field',
+        'alnum_field',
+        'alpha_field',
+        'ascii_field',
+        'decimal_field',
+        'digits_field',
         'email_field',
-        'emoji_remove_field',
-        'escape_field',
-        'html_special_chars_field',
-        'json_escape_field',
+        'strip_emoji_field',
         'lower_field',
-        'no_html_field',
-        'numeric_only_field',
-        'phone_field',
-        'remove_newlines_field',
-        'single_space_field',
+        'strip_html_field',
+        'phone_clean_field',
+        'strip_newlines_field',
+        'squish_field',
         'slug_field',
         'strip_tags_field',
         'trim_field',
         'ucfirst_field',
         'upper_field',
         'url_field',
-        'xss_field'
+        'strip_scripts_field',
+        'text_plain_field',
+        'text_strict_field',
+        'text_title_field',
+        'priority_field',
+        'attr_only_field',
+        'config_only_field',
     ];
-    
-    // Define sanitization rules for each field
-    protected $sanitize = [
+
+    protected array $sanitize = [
         'alpha_dash_field' => 'alpha_dash',
-        'alphanumeric_only_field' => 'alphanumeric_only',
-        'alpha_only_field' => 'alpha_only',
-        'ascii_only_field' => 'ascii_only',
-        'decimal_only_field' => 'decimal_only',
+        'alnum_field' => 'alnum',
+        'alpha_field' => 'alpha',
+        'ascii_field' => 'ascii',
+        'decimal_field' => 'decimal',
+        'digits_field' => 'digits',
         'email_field' => 'email',
-        'emoji_remove_field' => 'emoji_remove',
-        'escape_field' => 'escape',
-        'html_special_chars_field' => 'htmlspecialchars',
-        'json_escape_field' => 'json_escape',
+        'strip_emoji_field' => 'strip_emoji',
         'lower_field' => 'lower',
-        'no_html_field' => 'no_html',
-        'numeric_only_field' => 'numeric_only',
-        'phone_field' => 'phone',
-        'remove_newlines_field' => 'remove_newlines',
-        'single_space_field' => 'single_space',
+        'strip_html_field' => 'strip_html',
+        'phone_clean_field' => 'phone_clean',
+        'strip_newlines_field' => 'strip_newlines',
+        'squish_field' => 'squish',
         'slug_field' => 'slug',
         'strip_tags_field' => 'strip_tags',
         'trim_field' => 'trim',
         'ucfirst_field' => 'ucfirst',
         'upper_field' => 'upper',
         'url_field' => 'url',
-        'xss_field' => 'no_js'
+        'strip_scripts_field' => 'strip_scripts',
+        'text_plain_field' => 'text:plain',
+        'text_strict_field' => 'text:strict',
+        'text_title_field' => 'text:title',
     ];
 }
