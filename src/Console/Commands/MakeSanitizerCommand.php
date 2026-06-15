@@ -29,7 +29,7 @@ class MakeSanitizerCommand extends Command
             : $basePath;
         $targetPath = $targetDirectory.DIRECTORY_SEPARATOR.$class.'.php';
 
-        if ($files->exists($targetPath) && !$this->option('force')) {
+        if ($files->exists($targetPath) && ! $this->option('force')) {
             $this->error("Sanitizer already exists: {$targetPath}");
 
             return Command::FAILURE;
@@ -58,7 +58,7 @@ class MakeSanitizerCommand extends Command
         $classBase = array_pop($segments);
         $class = Str::studly($classBase);
 
-        if (!Str::endsWith($class, $requiredSuffix)) {
+        if (! Str::endsWith($class, $requiredSuffix)) {
             $class .= $requiredSuffix;
         }
 
@@ -117,4 +117,3 @@ PHP;
         return trim($namespace, '\\');
     }
 }
-

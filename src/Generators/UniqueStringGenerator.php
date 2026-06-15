@@ -3,12 +3,12 @@
 namespace IvanBaric\Sanigen\Generators;
 
 use Illuminate\Support\Str;
-use RuntimeException;
 use IvanBaric\Sanigen\Generators\Contracts\GeneratorContract;
+use RuntimeException;
 
 /**
  * Generates unique strings for model attributes.
- * 
+ *
  * This generator creates random strings of a specified length and ensures
  * they are unique within the model's table by checking the database.
  * It will make multiple attempts to find a unique string before failing.
@@ -18,17 +18,18 @@ class UniqueStringGenerator implements GeneratorContract
     /**
      * Create a new unique string generator.
      *
-     * @param int $length The length of the unique string to generate
-     * @param int $maxAttempts The maximum number of attempts to generate a unique string
+     * @param  int  $length  The length of the unique string to generate
+     * @param  int  $maxAttempts  The maximum number of attempts to generate a unique string
      */
     public function __construct(protected int $length = 6, protected int $maxAttempts = 10) {}
 
     /**
      * Generate a unique string for the specified field.
      *
-     * @param string $field The field name that will store the unique string
-     * @param object $model The model instance to generate the value for
+     * @param  string  $field  The field name that will store the unique string
+     * @param  object  $model  The model instance to generate the value for
      * @return string The generated unique string
+     *
      * @throws RuntimeException If unable to generate a unique string after maximum attempts
      */
     public function generate(string $field, object $model): string

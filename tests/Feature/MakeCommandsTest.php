@@ -4,7 +4,7 @@ use Illuminate\Filesystem\Filesystem;
 use Illuminate\Support\Str;
 
 test('make:sanitizer creates sanitizer class with default suffix and contract', function () {
-    $filesystem = new Filesystem();
+    $filesystem = new Filesystem;
     $basePath = base_path('tests/tmp/sanitizers_'.Str::random(8));
     $targetPath = $basePath.DIRECTORY_SEPARATOR.'UsernameSanitizer.php';
 
@@ -27,7 +27,7 @@ test('make:sanitizer creates sanitizer class with default suffix and contract', 
 });
 
 test('make:sanitizer supports subdirectories and studly names', function () {
-    $filesystem = new Filesystem();
+    $filesystem = new Filesystem;
     $basePath = base_path('tests/tmp/sanitizers_'.Str::random(8));
     $targetPath = $basePath.DIRECTORY_SEPARATOR.'Admin'.DIRECTORY_SEPARATOR.'TitleCleanSanitizer.php';
 
@@ -46,7 +46,7 @@ test('make:sanitizer supports subdirectories and studly names', function () {
 });
 
 test('make:generator creates generator class with default suffix and contract', function () {
-    $filesystem = new Filesystem();
+    $filesystem = new Filesystem;
     $basePath = base_path('tests/tmp/generators_'.Str::random(8));
     $targetPath = $basePath.DIRECTORY_SEPARATOR.'SlugGenerator.php';
 
@@ -70,7 +70,7 @@ test('make:generator creates generator class with default suffix and contract', 
 });
 
 test('make:generator respects force option when file exists', function () {
-    $filesystem = new Filesystem();
+    $filesystem = new Filesystem;
     $basePath = base_path('tests/tmp/generators_'.Str::random(8));
     $targetPath = $basePath.DIRECTORY_SEPARATOR.'SlugGenerator.php';
 
@@ -99,4 +99,3 @@ test('make:generator respects force option when file exists', function () {
         $filesystem->deleteDirectory($basePath);
     }
 });
-

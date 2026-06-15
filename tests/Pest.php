@@ -12,6 +12,7 @@ namespace {
     |
     */
 
+    use IvanBaric\Sanigen\SanigenServiceProvider;
     use Tests\TestCase;
 
     uses(TestCase::class)
@@ -47,7 +48,7 @@ namespace {
 
     function getPackageProviders($app)
     {
-        return [\IvanBaric\Sanigen\SanigenServiceProvider::class];
+        return [SanigenServiceProvider::class];
     }
 }
 
@@ -61,10 +62,11 @@ namespace Tests {
         use HasGenerators;
 
         protected $table = 'generator_test_models';
+
         protected $fillable = [
-            'title', 'uuid_field', 'ulid_field', 'auto_increment_field', 
-            'unique_code_field', 'random_string_field', 'slug_field', 
-            'user_property_field', 'carbon_field'
+            'title', 'uuid_field', 'ulid_field', 'auto_increment_field',
+            'unique_code_field', 'random_string_field', 'slug_field',
+            'user_property_field', 'carbon_field',
         ];
     }
 
@@ -81,7 +83,6 @@ namespace Tests {
             'slug_field' => 'slugify:title',
         ];
     }
-
 
     // Model for testing user property generator
     class UserPropertyGeneratorTestModel extends BaseGeneratorTestModel

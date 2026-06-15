@@ -11,10 +11,11 @@ class BaseGeneratorTestModel extends Model
     use HasGenerators;
 
     protected $table = 'generator_test_models';
+
     protected $fillable = [
-        'title', 'uuid_field', 'ulid_field', 'auto_increment_field', 
-        'unique_code_field', 'random_string_field', 'slug_field', 
-        'user_property_field'
+        'title', 'uuid_field', 'ulid_field', 'auto_increment_field',
+        'unique_code_field', 'random_string_field', 'slug_field',
+        'user_property_field',
     ];
 }
 
@@ -31,7 +32,6 @@ class BasicGeneratorTestModel extends BaseGeneratorTestModel
         'slug_field' => 'slugify:title',
     ];
 }
-
 
 // Model for testing user property generator
 class UserPropertyGeneratorTestModel extends BaseGeneratorTestModel

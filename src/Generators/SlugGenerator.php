@@ -2,7 +2,6 @@
 
 namespace IvanBaric\Sanigen\Generators;
 
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Str;
 use InvalidArgumentException;
 use IvanBaric\Sanigen\Generators\Contracts\GeneratorContract;
@@ -10,7 +9,7 @@ use Ramsey\Uuid\Uuid;
 
 /**
  * Generates a unique slug based on a source field.
- * 
+ *
  * This generator creates URL-friendly slugs from a specified source field
  * and ensures uniqueness by appending a configurable suffix if needed.
  */
@@ -35,9 +34,9 @@ class SlugGenerator implements GeneratorContract
     /**
      * Create a new slug generator.
      *
-     * @param string|null $param The parameter string from the generator key (format: "sourceField" or "sourceField,suffixType")
-     * @param string|null $suffixType The type of suffix to use for ensuring uniqueness
-     * @param string|null $dateFormat Format for date suffix (used when suffix_type is 'date')
+     * @param  string|null  $param  The parameter string from the generator key (format: "sourceField" or "sourceField,suffixType")
+     * @param  string|null  $suffixType  The type of suffix to use for ensuring uniqueness
+     * @param  string|null  $dateFormat  Format for date suffix (used when suffix_type is 'date')
      */
     public function __construct(
         ?string $param = null,
@@ -64,9 +63,10 @@ class SlugGenerator implements GeneratorContract
     /**
      * Generate a unique slug for the specified field.
      *
-     * @param string $field The field name that will store the slug
-     * @param object $model The model instance to generate the slug for
+     * @param  string  $field  The field name that will store the slug
+     * @param  object  $model  The model instance to generate the slug for
      * @return string The generated unique slug
+     *
      * @throws InvalidArgumentException If the source field is empty or not set
      */
     public function generate(string $field, object $model): string
@@ -94,9 +94,9 @@ class SlugGenerator implements GeneratorContract
     /**
      * Apply a suffix to the base slug to ensure uniqueness.
      *
-     * @param string $base The base slug
-     * @param string $field The field name that will store the slug
-     * @param object $model The model instance to generate the slug for
+     * @param  string  $base  The base slug
+     * @param  string  $field  The field name that will store the slug
+     * @param  object  $model  The model instance to generate the slug for
      * @return string The slug with suffix applied
      */
     protected function applySuffix(string $base, string $field, object $model): string
@@ -117,9 +117,9 @@ class SlugGenerator implements GeneratorContract
     /**
      * Apply an incremental numeric suffix to ensure uniqueness.
      *
-     * @param string $base The base slug
-     * @param string $field The field name that will store the slug
-     * @param object $model The model instance to generate the slug for
+     * @param  string  $base  The base slug
+     * @param  string  $field  The field name that will store the slug
+     * @param  object  $model  The model instance to generate the slug for
      * @return string The slug with incremental suffix
      */
     protected function applyIncrementSuffix(string $base, string $field, object $model): string
@@ -138,9 +138,9 @@ class SlugGenerator implements GeneratorContract
     /**
      * Apply a date suffix to ensure uniqueness.
      *
-     * @param string $base The base slug
-     * @param string $field The field name that will store the slug
-     * @param object $model The model instance to generate the slug for
+     * @param  string  $base  The base slug
+     * @param  string  $field  The field name that will store the slug
+     * @param  object  $model  The model instance to generate the slug for
      * @return string The slug with date suffix and incremental suffix if needed
      */
     protected function applyDateSuffix(string $base, string $field, object $model): string
@@ -165,16 +165,16 @@ class SlugGenerator implements GeneratorContract
         return $slug;
     }
 
-
     /**
      * Apply a UUID suffix to ensure uniqueness.
      *
-     * @param string $base The base slug
+     * @param  string  $base  The base slug
      * @return string The slug with UUID suffix
      */
     protected function applyUuidSuffix(string $base): string
     {
         $uuid = Str::uuid()->toString();
+
         return "{$base}-{$uuid}";
     }
 }

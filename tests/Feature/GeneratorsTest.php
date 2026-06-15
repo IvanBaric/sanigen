@@ -2,6 +2,7 @@
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Auth;
+use IvanBaric\Sanigen\Registries\GeneratorRegistry;
 use Tests\BaseGeneratorTestModel;
 use Tests\BasicGeneratorTestModel;
 use Tests\UserPropertyGeneratorTestModel;
@@ -16,7 +17,7 @@ class InvalidGeneratorTestModel extends BaseGeneratorTestModel
 
 test('generates uuid v4 values by default', function () {
     $model = BasicGeneratorTestModel::create([
-        'title' => 'Test Title'
+        'title' => 'Test Title',
     ]);
 
     // Assert that the UUID was generated and has the correct format
@@ -26,7 +27,7 @@ test('generates uuid v4 values by default', function () {
 
 test('generates uuid v7 values', function () {
     // Register a test model with UUID v7
-    class UuidV7TestModel extends \Tests\BaseGeneratorTestModel
+    class UuidV7TestModel extends BaseGeneratorTestModel
     {
         protected $generate = [
             'uuid_field' => 'uuid:v7',
@@ -34,7 +35,7 @@ test('generates uuid v7 values', function () {
     }
 
     $model = UuidV7TestModel::create([
-        'title' => 'Test Title'
+        'title' => 'Test Title',
     ]);
 
     // Assert that the UUID was generated and has the correct format (v7 starts with timestamp)
@@ -44,7 +45,7 @@ test('generates uuid v7 values', function () {
 
 test('generates uuid v8 values', function () {
     // Register a test model with UUID v8
-    class UuidV8TestModel extends \Tests\BaseGeneratorTestModel
+    class UuidV8TestModel extends BaseGeneratorTestModel
     {
         protected $generate = [
             'uuid_field' => 'uuid:v8',
@@ -52,7 +53,7 @@ test('generates uuid v8 values', function () {
     }
 
     $model = UuidV8TestModel::create([
-        'title' => 'Test Title'
+        'title' => 'Test Title',
     ]);
 
     // Assert that the UUID was generated and has the correct format (v8 is custom format)
@@ -62,7 +63,7 @@ test('generates uuid v8 values', function () {
 
 test('generates ulid values', function () {
     $model = BasicGeneratorTestModel::create([
-        'title' => 'Test Title'
+        'title' => 'Test Title',
     ]);
 
     // Assert that the ULID was generated and has the correct format (26 characters, alphanumeric)
@@ -84,7 +85,7 @@ test('generates auto increment values', function () {
 
 test('generates unique string values', function () {
     $model = BasicGeneratorTestModel::create([
-        'title' => 'Test Title'
+        'title' => 'Test Title',
     ]);
 
     // Assert that the unique string was generated with the correct length (10 characters)
@@ -95,7 +96,7 @@ test('generates unique string values', function () {
 
 test('generates random string values', function () {
     $model = BasicGeneratorTestModel::create([
-        'title' => 'Test Title'
+        'title' => 'Test Title',
     ]);
 
     // Assert that the random string was generated with the correct length (12 characters)
@@ -105,7 +106,7 @@ test('generates random string values', function () {
 
 test('generates slug values with default increment suffix when needed', function () {
     $model = BasicGeneratorTestModel::create([
-        'title' => 'Test Title With Special Characters: & % $ #'
+        'title' => 'Test Title With Special Characters: & % $ #',
     ]);
 
     // Assert that the slug was generated from the title
@@ -113,7 +114,7 @@ test('generates slug values with default increment suffix when needed', function
 
     // Create another model with the same title to test the increment suffix
     $model2 = BasicGeneratorTestModel::create([
-        'title' => 'Test Title With Special Characters: & % $ #'
+        'title' => 'Test Title With Special Characters: & % $ #',
     ]);
 
     // Assert that the second slug has an increment suffix
@@ -122,10 +123,10 @@ test('generates slug values with default increment suffix when needed', function
 
 test('generates slug values with date suffix and ensures uniqueness', function () {
     // Register a test model with date suffix
-    class SlugDateSuffixTestModel extends \Tests\BaseGeneratorTestModel
+    class SlugDateSuffixTestModel extends BaseGeneratorTestModel
     {
         protected $generate = [
-            'slug_field' => 'slugify:title,date'
+            'slug_field' => 'slugify:title,date',
         ];
     }
 
@@ -134,35 +135,34 @@ test('generates slug values with date suffix and ensures uniqueness', function (
     config(['sanigen.generator_settings.slugify.date_format' => 'Ymd']);
 
     $model = SlugDateSuffixTestModel::create([
-        'title' => 'Test Title'
+        'title' => 'Test Title',
     ]);
 
     // Create a second model with the same title to trigger date suffix
     $model2 = SlugDateSuffixTestModel::create([
-        'title' => 'Test Title'
+        'title' => 'Test Title',
     ]);
 
     // Create a third model with the same title to trigger incremental suffix
     $model3 = SlugDateSuffixTestModel::create([
-        'title' => 'Test Title'
+        'title' => 'Test Title',
     ]);
 
     // Assert that the slug has a date suffix in the expected format
     $expectedDateSuffix = now()->format('Ymd');
-    expect($model->slug_field)->toBe("test-title");
+    expect($model->slug_field)->toBe('test-title');
     expect($model2->slug_field)->toBe("test-title-{$expectedDateSuffix}");
 
     // Assert that the third slug has both date and incremental suffix
     expect($model3->slug_field)->toBe("test-title-{$expectedDateSuffix}-1");
 });
 
-
 test('generates slug values with uuid suffix', function () {
     // Register a test model with uuid suffix
-    class SlugUuidSuffixTestModel extends \Tests\BaseGeneratorTestModel
+    class SlugUuidSuffixTestModel extends BaseGeneratorTestModel
     {
         protected $generate = [
-            'slug_field' => 'slugify:title,uuid'
+            'slug_field' => 'slugify:title,uuid',
         ];
     }
 
@@ -170,12 +170,12 @@ test('generates slug values with uuid suffix', function () {
     config(['sanigen.generator_settings.slugify.suffix_type' => 'uuid']);
 
     $model = SlugUuidSuffixTestModel::create([
-        'title' => 'Test Title'
+        'title' => 'Test Title',
     ]);
 
     // Create a second model with the same title to trigger suffix
     $model2 = SlugUuidSuffixTestModel::create([
-        'title' => 'Test Title'
+        'title' => 'Test Title',
     ]);
 
     // Assert that the slug has a uuid suffix
@@ -234,7 +234,8 @@ test('regenerates slug with uniqueness rules on update when slug_updates_on_save
 test('model property can override config and enable slug updates on save', function () {
     config(['sanigen.generator_settings.slugify.slug_updates_on_save' => false]);
 
-    $model = new class extends \Tests\BaseGeneratorTestModel {
+    $model = new class extends BaseGeneratorTestModel
+    {
         protected bool $slugUpdatesOnSave = true;
 
         protected $generate = [
@@ -257,7 +258,8 @@ test('model property can override config and enable slug updates on save', funct
 test('model property can override config and disable slug updates on save', function () {
     config(['sanigen.generator_settings.slugify.slug_updates_on_save' => true]);
 
-    $model = new class extends \Tests\BaseGeneratorTestModel {
+    $model = new class extends BaseGeneratorTestModel
+    {
         protected bool $slugUpdatesOnSave = false;
 
         protected $generate = [
@@ -277,26 +279,28 @@ test('model property can override config and disable slug updates on save', func
     expect($model->slug_field)->toBe($originalSlug);
 });
 
-
-
 test('generates user property values', function () {
     // Create a user and authenticate
-    $user = new class {
-        public function __get($name) {
+    $user = new class
+    {
+        public function __get($name)
+        {
             if ($name === 'email') {
                 return 'test@example.com';
             }
+
             return null;
         }
 
-        public function __isset($name) {
+        public function __isset($name)
+        {
             return $name === 'email';
         }
     };
     Auth::shouldReceive('user')->andReturn($user);
 
     $model = UserPropertyGeneratorTestModel::create([
-        'title' => 'Test Title'
+        'title' => 'Test Title',
     ]);
 
     // Assert that the user property was set to the authenticated user's email
@@ -304,7 +308,7 @@ test('generates user property values', function () {
 });
 
 test('generates carbon values from modifiers', function (string $modifier, string $unit, int $min, int $max) {
-    $generator = \IvanBaric\Sanigen\Registries\GeneratorRegistry::resolve('carbon:' . $modifier);
+    $generator = GeneratorRegistry::resolve('carbon:'.$modifier);
     $generated = $generator->generate('carbon_field', (object) []);
 
     expect($generated)->not->toBeNull();
@@ -328,12 +332,11 @@ test('generates carbon values from modifiers', function (string $modifier, strin
     ['tomorrow', 'days', 0, 2],
 ]);
 
-
 test('throws exception for invalid generator key', function () {
     // This should throw an InvalidArgumentException because 'invalid_generator_key' doesn't exist
     expect(function () {
         InvalidGeneratorTestModel::create([
-            'title' => 'Test Title'
+            'title' => 'Test Title',
         ]);
-    })->toThrow(\InvalidArgumentException::class, "Generator with key 'invalid_generator_key' does not exist");
+    })->toThrow(InvalidArgumentException::class, "Generator with key 'invalid_generator_key' does not exist");
 });
