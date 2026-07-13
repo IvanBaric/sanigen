@@ -2,6 +2,7 @@
 
 namespace IvanBaric\Sanigen\Registries;
 
+use InvalidArgumentException;
 use IvanBaric\Sanigen\Generators\AutoIncrementGenerator;
 use IvanBaric\Sanigen\Generators\CarbonGenerator;
 use IvanBaric\Sanigen\Generators\Contracts\GeneratorContract;
@@ -52,21 +53,41 @@ class GeneratorRegistry
         $class = static::$map[$alias] ?? null;
 
         if (! $class) {
-            throw new \InvalidArgumentException("Generator with key '{$alias}' does not exist. Check if you have specified the correct generator key.");
+            throw new InvalidArgumentException("Generator with key '{$alias}' does not exist. Check if you have specified the correct generator key.");
         }
 
         // Always instantiate the class, parameter will be used if provided
-        return new $class($param);
+        $generator = new $class($param);
+
+        if (! $generator instanceof GeneratorContract) {
+            throw new InvalidArgumentException("Generator class [{$class}] must implement ".GeneratorContract::class.'.');
+        }
+
+        return $generator;
     }
 
     /**
      * Register a new generator or override an existing one.
      *
      * @param  string  $key  The key to register the generator under
-     * @param  string  $class  The fully qualified class name of the generator
+     * @param  class-string<GeneratorContract>  $class  The fully qualified class name of the generator
      */
     public static function register(string $key, string $class): void
     {
+        $key = trim($key);
+
+        if ($key === '') {
+            throw new InvalidArgumentException('Generator key cannot be empty.');
+        }
+
+        if (! class_exists($class)) {
+            throw new InvalidArgumentException("Generator class [{$class}] does not exist.");
+        }
+
+        if (! is_subclass_of($class, GeneratorContract::class)) {
+            throw new InvalidArgumentException("Generator class [{$class}] must implement ".GeneratorContract::class.'.');
+        }
+
         static::$map[$key] = $class;
     }
 }

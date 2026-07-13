@@ -2,6 +2,8 @@
 
 namespace IvanBaric\Sanigen\Traits;
 
+use InvalidArgumentException;
+use IvanBaric\Sanigen\Exceptions\SanitizationException;
 use IvanBaric\Sanigen\Registries\SanitizerRegistry;
 use IvanBaric\Sanigen\Resolvers\ModelRuleResolver;
 use Throwable;
@@ -38,11 +40,20 @@ trait HasSanitization
             return $value;
         }
 
+        return $this->sanitizeStructuredValue($key, $value, $ruleSet);
+    }
+
+    protected function sanitizeStructuredValue(string $key, mixed $value, string $ruleSet): mixed
+    {
+        if ($value === null) {
+            return null;
+        }
+
         if (is_array($value)) {
             $sanitizedArray = [];
 
-            foreach ($value as $locale => $localeValue) {
-                $sanitizedArray[$locale] = $this->sanitizeValue($key, $localeValue, $ruleSet);
+            foreach ($value as $nestedKey => $nestedValue) {
+                $sanitizedArray[$nestedKey] = $this->sanitizeStructuredValue($key, $nestedValue, $ruleSet);
             }
 
             return $sanitizedArray;
@@ -54,38 +65,53 @@ trait HasSanitization
     protected function sanitizeValue(string $key, mixed $value, string $ruleSet): mixed
     {
         if (! is_scalar($value)) {
-            return $value;
+            throw new InvalidArgumentException("Attribute [{$key}] contains a non-scalar value that cannot be sanitized.");
         }
 
-        try {
-            $stringValue = (string) $value;
+        $stringValue = (string) $value;
 
-            foreach (explode('|', $ruleSet) as $rule) {
-                $rule = trim($rule);
-                if ($rule === '') {
-                    continue;
-                }
+        foreach (explode('|', $ruleSet) as $rule) {
+            $rule = trim($rule);
+            if ($rule === '') {
+                continue;
+            }
 
+            try {
                 $sanitizer = SanitizerRegistry::resolve($rule);
                 if ($sanitizer) {
                     $stringValue = $sanitizer->apply($stringValue);
                 }
+            } catch (InvalidArgumentException $e) {
+                throw $e;
+            } catch (Throwable $e) {
+                return $this->handleSanitizationFailure($key, $rule, $value, $e);
             }
-
-            if ($stringValue === '' && $this->hasSanigenNumericCast($key)) {
-                return null;
-            }
-
-            return $stringValue;
-        } catch (\InvalidArgumentException $e) {
-            throw $e;
-        } catch (Throwable $e) {
-            if (function_exists('logger')) {
-                logger()->error("Sanitization failed for attribute {$key}: ".$e->getMessage());
-            }
-
-            return $value;
         }
+
+        if ($stringValue === '' && $this->hasSanigenNumericCast($key)) {
+            return null;
+        }
+
+        return $stringValue;
+    }
+
+    protected function handleSanitizationFailure(string $key, string $rule, mixed $originalValue, Throwable $e): mixed
+    {
+        $mode = config('sanigen.failure_mode', 'throw');
+
+        if ($mode === 'throw') {
+            throw new SanitizationException($key, $rule, $e);
+        }
+
+        if ($mode === 'null') {
+            return null;
+        }
+
+        if ($mode === 'original') {
+            return $originalValue;
+        }
+
+        throw new InvalidArgumentException("Invalid Sanigen failure mode [{$mode}]. Supported modes are: throw, null, original.");
     }
 
     public function sanitizeAttributes(): bool

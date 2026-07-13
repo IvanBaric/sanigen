@@ -8,6 +8,6 @@ final class StripHtmlSanitizer implements Sanitizer
 {
     public function apply(string $value): string
     {
-        return strip_tags($value);
+        return strip_tags((new SafeHtmlSanitizer)->apply($value));
     }
 }

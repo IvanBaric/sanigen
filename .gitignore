@@ -21,7 +21,8 @@ Thumbs.db
 /storage/
 /bootstrap/cache/
 
-# PHPUnit cache
+# PHPUnit i PHPStan cache
 .phpunit.result.cache
+/.phpstan/
 
 /composer.lock
