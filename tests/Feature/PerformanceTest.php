@@ -12,7 +12,7 @@ test('resanitize command handles larger batches with modern aliases', function (
             'trim_field' => '  Trim me  ',
             'squish_field' => "Many     spaces   {$i}",
             'strip_scripts_field' => '<script>alert(1)</script>safe',
-            'text_plain_field' => '<script>alert(1)</script>Hello   World',
+            'text_field' => '<script>alert(1)</script>Hello   World',
             'email_field' => ' USER'.$i.'@EXAMPLE.COM ',
             'created_at' => now(),
             'updated_at' => now(),
@@ -32,6 +32,6 @@ test('resanitize command handles larger batches with modern aliases', function (
     expect($first->trim_field)->toBe('Trim me');
     expect($first->squish_field)->toBe('Many spaces 0');
     expect($first->strip_scripts_field)->toBe('safe');
-    expect($first->text_plain_field)->toBe('Hello World');
+    expect($first->text_field)->toBe('Hello World');
     expect($first->email_field)->toBe('user0@example.com');
 });

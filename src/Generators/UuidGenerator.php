@@ -45,7 +45,7 @@ class UuidGenerator implements GeneratorContract
 
         return match (strtolower($version)) {
             'v7' => (string) Uuid::uuid7(),
-            'v8' => (string) Uuid::uuid8(Uuid::NAMESPACE_DNS, gethostname()),
+            'v8' => (string) Uuid::uuid8(random_bytes(16)),
             default => (string) Str::uuid(), // v4 is the default
         };
     }

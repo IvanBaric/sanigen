@@ -16,6 +16,7 @@ test('all built in sanitizers resolve from registry', function () {
         'strip_html',
         'strip_tags',
         'strip_scripts',
+        'safe_html',
         'strip_emoji',
         'alpha',
         'alnum',
@@ -74,15 +75,14 @@ test('url alias rejects dangerous schemes', function (string $input) {
     'vbscript scheme' => ['vbscript:msgbox("xss")'],
 ]);
 
-test('strip scripts sanitizer caps very large payloads', function () {
-    Config::set('sanigen.max_strip_scripts_input_length', 128);
+test('strip scripts sanitizer rejects very large payloads instead of truncating', function () {
+    Config::set('sanigen.max_html_input_length', 128);
+    Config::set('sanigen.max_html_input_length', 128);
 
     $sanitizer = SanitizerRegistry::resolve('strip_scripts');
     $input = str_repeat('<div>safe</div>', 2000).'<script>alert(1)</script>';
-    $result = $sanitizer->apply($input);
 
-    expect($result)->not->toContain('<script>');
-    expect(strlen($result))->toBeLessThanOrEqual(128);
+    expect(fn () => $sanitizer->apply($input))->toThrow(LengthException::class);
 });
 
 test('empty sanitized numeric values become null for numeric casts', function () {

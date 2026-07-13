@@ -23,6 +23,23 @@ test('resanitize command validates model uses sanitization trait', function () {
         ->assertExitCode(1);
 });
 
+test('resanitize command rejects classes that are not eloquent models', function () {
+    class NotAnEloquentModel {}
+
+    $this->artisan('sanigen:resanitize', ['model' => NotAnEloquentModel::class])
+        ->expectsOutput('Model class '.NotAnEloquentModel::class.' must extend '.Model::class.'.')
+        ->assertExitCode(1);
+});
+
+test('resanitize command validates chunk bounds', function () {
+    $this->artisan('sanigen:resanitize', [
+        'model' => SanitizerTestModel::class,
+        '--chunk' => 0,
+    ])
+        ->expectsOutput('Chunk size must be between 1 and 1000.')
+        ->assertExitCode(1);
+});
+
 test('resanitize command validates model has sanitization rules', function () {
     // Create a model class that uses the HasSanitization trait but has no sanitization rules
     class ModelWithoutRules extends Model
@@ -69,6 +86,24 @@ test('resanitize command processes records in chunks', function () {
     foreach ($records as $record) {
         expect($record->lower_field)->toStartWith('test string');
     }
+});
+
+test('resanitize command dry run does not save changes', function () {
+    DB::table('sanitizer_test_models')->insert([
+        ['lower_field' => 'TEST STRING', 'created_at' => now(), 'updated_at' => now()],
+    ]);
+
+    $this->artisan('sanigen:resanitize', [
+        'model' => SanitizerTestModel::class,
+        '--dry-run' => true,
+        '--force' => true,
+    ])
+        ->expectsOutput('DRY RUN: No records will be saved.')
+        ->expectsOutput('Dry run completed.')
+        ->expectsOutput('Would update 1 records.')
+        ->assertExitCode(0);
+
+    expect(DB::table('sanitizer_test_models')->value('lower_field'))->toBe('TEST STRING');
 });
 
 test('resanitize command only updates records that need sanitization', function () {

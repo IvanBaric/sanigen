@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\DB;
 use IvanBaric\Sanigen\Resolvers\ModelRuleResolver;
 use IvanBaric\Sanigen\Traits\HasSanitization;
 use IvanBaric\Sanigen\Traits\Sanigen;
+use Throwable;
 
 class ResanitizeCommand extends Command
 {
@@ -19,6 +20,7 @@ class ResanitizeCommand extends Command
     protected $signature = 'sanigen:resanitize
                             {model : The model class name (e.g., "App\\Models\\Post")}
                             {--chunk=200 : The number of records to process at once}
+                            {--dry-run : Count records that would change without saving}
                             {--force : Skip confirmation prompt}';
 
     /**
@@ -36,10 +38,23 @@ class ResanitizeCommand extends Command
         try {
             $modelClass = $this->argument('model');
             $chunkSize = (int) $this->option('chunk');
+            $maxChunkSize = max(1, (int) config('sanigen.resanitize_max_chunk', 1000));
+
+            if ($chunkSize < 1 || $chunkSize > $maxChunkSize) {
+                $this->error("Chunk size must be between 1 and {$maxChunkSize}.");
+
+                return Command::FAILURE;
+            }
 
             // Validate the model class
             if (! class_exists($modelClass)) {
                 $this->error("Model class {$modelClass} does not exist.");
+
+                return Command::FAILURE;
+            }
+
+            if (! is_subclass_of($modelClass, Model::class)) {
+                $this->error("Model class {$modelClass} must extend ".Model::class.'.');
 
                 return Command::FAILURE;
             }
@@ -58,15 +73,21 @@ class ResanitizeCommand extends Command
 
                 return Command::FAILURE;
             }
-        } catch (\Exception $e) {
+        } catch (Throwable $e) {
             $this->error('Error during command initialization: '.$e->getMessage());
 
             return Command::FAILURE;
         }
 
+        $dryRun = (bool) $this->option('dry-run');
+
         // Display backup warning
-        $this->warn('WARNING: This operation will modify existing records in your database.');
-        $this->warn('It is strongly recommended to create a backup of your database before proceeding.');
+        if ($dryRun) {
+            $this->warn('DRY RUN: No records will be saved.');
+        } else {
+            $this->warn('WARNING: This operation will modify existing records in your database.');
+            $this->warn('It is strongly recommended to create a backup of your database before proceeding.');
+        }
 
         // Skip confirmation if --force option is provided or in non-interactive mode
         if ($this->option('force') || ! $this->input->isInteractive() || $this->confirm('Do you wish to continue?', true)) {
@@ -77,11 +98,12 @@ class ResanitizeCommand extends Command
             return Command::SUCCESS;
         }
 
-        $this->info("Starting resanitization of {$modelClass} records...");
+        $this->info(($dryRun ? 'Checking' : 'Starting resanitization of')." {$modelClass} records...");
         $this->info("Processing in chunks of {$chunkSize} records.");
 
         try {
-            $totalRecords = $modelClass::count();
+            $query = $model->newQuery();
+            $totalRecords = $query->count();
             $processedRecords = 0;
             $updatedRecords = 0;
 
@@ -89,29 +111,36 @@ class ResanitizeCommand extends Command
             $bar->start();
 
             // Process records in chunks to prevent memory overflow
-            $modelClass::query()->chunkById($chunkSize, function ($records) use (&$processedRecords, &$updatedRecords, $bar) {
-                DB::beginTransaction();
+            $query->chunkById($chunkSize, function ($records) use (&$processedRecords, &$updatedRecords, $bar, $dryRun) {
+                if (! $dryRun) {
+                    DB::beginTransaction();
+                }
 
                 try {
                     foreach ($records as $record) {
                         try {
-                            $updated = $this->resanitizeRecord($record);
+                            $updated = $this->resanitizeRecord($record, $dryRun);
                             $processedRecords++;
 
                             if ($updated) {
                                 $updatedRecords++;
                             }
-                        } catch (\Exception $e) {
-                            $this->error("Error sanitizing record {$record->id}: ".$e->getMessage());
+                        } catch (Throwable $e) {
+                            $this->error("Error sanitizing record key {$record->getKey()}: ".$e->getMessage());
                             // Continue with next record
                         }
 
                         $bar->advance();
                     }
 
-                    DB::commit();
-                } catch (\Exception $e) {
-                    DB::rollBack();
+                    if (! $dryRun) {
+                        DB::commit();
+                    }
+                } catch (Throwable $e) {
+                    if (! $dryRun) {
+                        DB::rollBack();
+                    }
+
                     $this->error('Error processing chunk: '.$e->getMessage());
                     // Continue with next chunk instead of throwing
                 }
@@ -120,12 +149,12 @@ class ResanitizeCommand extends Command
             $bar->finish();
             $this->newLine();
 
-            $this->info('Resanitization completed.');
+            $this->info($dryRun ? 'Dry run completed.' : 'Resanitization completed.');
             $this->info("Processed {$processedRecords} records.");
-            $this->info("Updated {$updatedRecords} records.");
+            $this->info($dryRun ? "Would update {$updatedRecords} records." : "Updated {$updatedRecords} records.");
 
             return Command::SUCCESS;
-        } catch (\Exception $e) {
+        } catch (Throwable $e) {
             $this->error('Error during sanitization process: '.$e->getMessage());
 
             return Command::FAILURE;
@@ -148,11 +177,15 @@ class ResanitizeCommand extends Command
      *
      * @return bool Whether the record was updated
      */
-    private function resanitizeRecord(Model $record): bool
+    private function resanitizeRecord(Model $record, bool $dryRun = false): bool
     {
+        if (! method_exists($record, 'sanitizeAttributes')) {
+            return false;
+        }
+
         $updated = $record->sanitizeAttributes();
 
-        if ($updated) {
+        if ($updated && ! $dryRun) {
             $record->saveQuietly();
         }
 

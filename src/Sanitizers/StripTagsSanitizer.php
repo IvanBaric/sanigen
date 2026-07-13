@@ -5,18 +5,11 @@ namespace IvanBaric\Sanigen\Sanitizers;
 use IvanBaric\Sanigen\Sanitizers\Contracts\Sanitizer;
 
 /**
- * Sanitizes a string by removing HTML and PHP tags, except for allowed tags.
+ * Removes HTML and PHP tags except for configured allowed tags.
  *
- * This sanitizer uses PHP's strip_tags() function to remove HTML and PHP tags
- * from the input string, but allows specific tags to be preserved based on
- * configuration. The allowed tags are defined in the 'sanigen.allowed_html_tags'
- * configuration setting.
- *
- * Useful for:
- * - Allowing limited HTML formatting while removing potentially dangerous tags
- * - Creating a controlled whitelist of acceptable HTML elements
- * - Sanitizing user input for display in HTML contexts with basic formatting
- * - Implementing a restricted markup system
+ * This compatibility sanitizer is not a complete XSS security boundary and must
+ * not be used for content rendered through unescaped Blade output. Use
+ * `safe_html` for rich HTML that will be rendered with `{!! !!}`.
  */
 final class StripTagsSanitizer implements Sanitizer
 {

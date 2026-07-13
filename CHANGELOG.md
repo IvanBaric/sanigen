@@ -5,6 +5,30 @@ All notable changes to the Sanigen package will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.7.0] - 2026-07-13
+
+### Added
+- Added parser-based `safe_html` sanitization through Symfony HtmlSanitizer for rich HTML that is intentionally rendered unescaped.
+- Added fail-closed sanitization errors with `SanitizationException` and configurable `failure_mode`.
+- Added URL scheme allowlist config with HTTPS defaults and empty-string rejection for invalid or disallowed URLs.
+- Added registry validation for custom sanitizers and generators, including class and contract checks.
+- Added circular alias detection with a clear alias chain in the exception message.
+- Added recursive scalar sanitization for nested arrays and translatable attributes while preserving structure.
+- Added `--dry-run` support and stricter model/chunk validation to `sanigen:resanitize`.
+- Added security-focused tests, PHPStan config, and a GitHub Actions workflow with tests, Pint, PHPStan, and Composer audit.
+
+### Changed
+- Changed default `text`, `title`, and `ascii` aliases to use `strip_html` as the HTML boundary without running `strip_scripts` afterward.
+- Changed `strip_html` and legacy `strip_scripts` to delegate HTML safety to the parser-based sanitizer instead of regex cleanup as the primary protection.
+- Changed oversized HTML sanitization to throw instead of silently truncating input.
+- Changed sanitization failures to throw by default instead of saving the original value.
+
+### Security
+- Drops dangerous HTML elements and event attributes, hardens rich-text links with HTTPS where possible, and adds `rel="noopener noreferrer"`.
+- Rejects non-HTTP(S) URL values such as `javascript:`, `data:`, `file:`, and `ftp:`.
+- Prevents unsafe original values from being saved after sanitizer failures unless `failure_mode` is explicitly set to `original`.
+- Documents that database unique indexes remain the final uniqueness guarantee for generated slugs, strings, and counters.
+
 ## [1.6.0] - 2026-03-28
 
 ### Added

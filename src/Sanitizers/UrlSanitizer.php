@@ -2,31 +2,14 @@
 
 namespace IvanBaric\Sanigen\Sanitizers;
 
+use InvalidArgumentException;
 use IvanBaric\Sanigen\Sanitizers\Contracts\Sanitizer;
 
 /**
- * Sanitizes a string to be a valid URL with a protocol.
- *
- * This sanitizer ensures that URLs have a protocol prefix by:
- * 1. Checking if the URL already starts with "http://" or "https://"
- * 2. If not, adding "https://" to the beginning and removing any leading slashes
- *
- * The result is a URL that always has a protocol, defaulting to HTTPS
- * for URLs that didn't specify one.
- *
- * Useful for:
- * - Ensuring URLs are complete and properly formatted
- * - Enforcing HTTPS by default for security
- * - Normalizing user-entered URLs
+ * Sanitizes a string to a valid URL with an allowed scheme.
  */
 final class UrlSanitizer implements Sanitizer
 {
-    /**
-     * Sanitize a string to be a valid URL with a protocol.
-     *
-     * @param  string  $value  The input string to sanitize
-     * @return string The sanitized URL with a protocol
-     */
     public function apply(string $value): string
     {
         $value = trim($value);
@@ -35,24 +18,56 @@ final class UrlSanitizer implements Sanitizer
             return '';
         }
 
-        // Preserve existing safe schemes and reject explicitly dangerous ones.
-        if (preg_match('/^[a-z][a-z0-9+\-.]*:/i', $value)) {
-            if (preg_match('/^https?:\/\//i', $value)) {
-                return $value;
-            }
-
-            if (preg_match('/^(?:javascript|data|vbscript):/i', $value)) {
-                return '';
-            }
-
-            return $value;
-        }
-
         if (str_starts_with($value, '//')) {
-            return 'https:'.$value;
+            $value = $this->defaultScheme().':'.$value;
+        } elseif (! preg_match('/^[a-z][a-z0-9+\-.]*:/i', $value)) {
+            $value = $this->defaultScheme().'://'.ltrim($value, '/');
         }
 
-        // Force HTTPS protocol if no protocol is specified
-        return 'https://'.ltrim($value, '/');
+        if (filter_var($value, FILTER_VALIDATE_URL) === false) {
+            return '';
+        }
+
+        $scheme = parse_url($value, PHP_URL_SCHEME);
+
+        if (! is_string($scheme) || ! in_array(strtolower($scheme), $this->allowedSchemes(), true)) {
+            return '';
+        }
+
+        return preg_replace('/^[a-z][a-z0-9+\-.]*:/i', strtolower($scheme).':', $value, 1) ?? '';
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function allowedSchemes(): array
+    {
+        $schemes = config('sanigen.allowed_url_schemes', ['http', 'https']);
+
+        if (! is_array($schemes)) {
+            throw new InvalidArgumentException('Sanigen allowed_url_schemes must be an array.');
+        }
+
+        $schemes = array_values(array_unique(array_filter(
+            array_map(static fn (mixed $scheme): string => strtolower(trim((string) $scheme)), $schemes),
+            static fn (string $scheme): bool => $scheme !== ''
+        )));
+
+        if ($schemes === []) {
+            throw new InvalidArgumentException('Sanigen allowed_url_schemes cannot be empty.');
+        }
+
+        return $schemes;
+    }
+
+    private function defaultScheme(): string
+    {
+        $scheme = strtolower(trim((string) config('sanigen.default_url_scheme', 'https')));
+
+        if ($scheme === '' || ! in_array($scheme, $this->allowedSchemes(), true)) {
+            throw new InvalidArgumentException('Sanigen default_url_scheme must be included in allowed_url_schemes.');
+        }
+
+        return $scheme;
     }
 }

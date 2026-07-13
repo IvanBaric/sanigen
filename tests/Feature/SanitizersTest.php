@@ -32,7 +32,7 @@ test('renamed sanitizer rules are applied through model property api', function 
     expect($model->alpha_dash_field)->toBe('Test-123');
     expect($model->alnum_field)->toBe('Test123');
     expect($model->alpha_field)->toBe('Test');
-    expect($model->ascii_field)->toBe('cafe ');
+    expect($model->ascii_field)->toBe('cafe');
     expect($model->decimal_field)->toBe('1234.56');
     expect($model->digits_field)->toBe('123');
     expect($model->email_field)->toBe('user@example.com');
