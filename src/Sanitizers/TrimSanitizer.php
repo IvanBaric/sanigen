@@ -9,7 +9,7 @@ use IvanBaric\Sanigen\Sanitizers\Contracts\Sanitizer;
  *
  * This sanitizer performs three operations:
  * 1. Converts various Unicode whitespace characters to standard ASCII spaces
- * 2. Removes ASCII control characters
+ * 2. Removes unsafe ASCII control characters while preserving tabs and line breaks
  * 3. Trims leading and trailing whitespace
  */
 final class TrimSanitizer implements Sanitizer
@@ -29,9 +29,10 @@ final class TrimSanitizer implements Sanitizer
             subject: $value
         ) ?? $value;
 
-        // Remove ASCII control characters (0-31 and DEL/127)
+        // Preserve HT, LF and CR because plain-text fields use trim without
+        // strip_newlines and must retain intentional textarea formatting.
         $value = preg_replace(
-            pattern: '/[\x00-\x1F\x7F]/u',
+            pattern: '/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/u',
             replacement: '',
             subject: $value
         ) ?? $value;

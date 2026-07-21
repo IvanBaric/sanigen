@@ -8,6 +8,10 @@ final class StripHtmlSanitizer implements Sanitizer
 {
     public function apply(string $value): string
     {
+        if (! str_contains($value, '<')) {
+            return $value;
+        }
+
         return strip_tags((new SafeHtmlSanitizer)->apply($value));
     }
 }

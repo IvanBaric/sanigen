@@ -2,6 +2,12 @@
 
 use IvanBaric\Sanigen\Sanitizers\SafeHtmlSanitizer;
 
+test('safe html preserves plain text without html encoding', function () {
+    $html = (new SafeHtmlSanitizer)->apply(' ustanova@example.com & partner ');
+
+    expect($html)->toBe('ustanova@example.com & partner');
+});
+
 test('safe html keeps basic markup and hardens links', function () {
     $html = (new SafeHtmlSanitizer)->apply('<p>Hello <strong>world</strong> <a href="http://example.com">Link</a></p>');
 

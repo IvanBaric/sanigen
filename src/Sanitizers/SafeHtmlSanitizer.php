@@ -40,6 +40,10 @@ final class SafeHtmlSanitizer implements Sanitizer
             throw new LengthException("HTML input exceeds the configured maximum of {$maxLength} bytes.");
         }
 
+        if (! str_contains($value, '<')) {
+            return trim($value);
+        }
+
         $config = (new HtmlSanitizerConfig)
             ->allowSafeElements()
             ->allowLinkSchemes($this->allowedLinkSchemes())

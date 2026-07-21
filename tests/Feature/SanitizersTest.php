@@ -63,6 +63,21 @@ test('configured aliases apply the expected pipelines', function () {
     expect($model->title_field)->toBe('Hello world');
 });
 
+test('strip html preserves plain text characters without invoking html encoding', function () {
+    $model = new SanitizerTestModel;
+    $model->strip_html_field = 'ustanova@example.com & partner';
+    $model->save();
+
+    expect($model->strip_html_field)->toBe('ustanova@example.com & partner');
+});
+
+test('trim preserves intentional textarea line breaks and removes unsafe controls', function () {
+    $sanitizer = SanitizerRegistry::resolve('trim');
+
+    expect($sanitizer->apply("  Prvi odlomak.\r\n\r\nDrugi odlomak.\nTreći red.\x00\x1F  "))
+        ->toBe("Prvi odlomak.\r\n\r\nDrugi odlomak.\nTreći red.");
+});
+
 test('strip_scripts removes suspicious javascript patterns', function () {
     $model = new SanitizerTestModel;
     $model->strip_scripts_field = 'before fetch("https://evil.test") document.cookie = "x=1"; alert("XSS") after';
