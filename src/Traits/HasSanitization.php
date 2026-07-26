@@ -40,20 +40,46 @@ trait HasSanitization
             return $value;
         }
 
-        return $this->sanitizeStructuredValue($key, $value, $ruleSet);
+        $items = 0;
+
+        return $this->sanitizeStructuredValue($key, $value, $ruleSet, 0, $items);
     }
 
-    protected function sanitizeStructuredValue(string $key, mixed $value, string $ruleSet): mixed
-    {
+    protected function sanitizeStructuredValue(
+        string $key,
+        mixed $value,
+        string $ruleSet,
+        int $depth = 0,
+        int &$items = 0,
+    ): mixed {
         if ($value === null) {
             return null;
         }
 
+        $maxDepth = max(1, (int) config('sanigen.max_nested_depth', 8));
+
+        if ($depth > $maxDepth) {
+            throw new InvalidArgumentException("Attribute [{$key}] exceeds the {$maxDepth} level nesting limit.");
+        }
+
         if (is_array($value)) {
             $sanitizedArray = [];
+            $maxItems = max(1, (int) config('sanigen.max_nested_items', 500));
 
             foreach ($value as $nestedKey => $nestedValue) {
-                $sanitizedArray[$nestedKey] = $this->sanitizeStructuredValue($key, $nestedValue, $ruleSet);
+                $items++;
+
+                if ($items > $maxItems) {
+                    throw new InvalidArgumentException("Attribute [{$key}] exceeds the {$maxItems} item limit.");
+                }
+
+                $sanitizedArray[$nestedKey] = $this->sanitizeStructuredValue(
+                    $key,
+                    $nestedValue,
+                    $ruleSet,
+                    $depth + 1,
+                    $items,
+                );
             }
 
             return $sanitizedArray;
@@ -69,6 +95,11 @@ trait HasSanitization
         }
 
         $stringValue = (string) $value;
+        $maxLength = max(1, (int) config('sanigen.max_scalar_input_length', 65535));
+
+        if (strlen($stringValue) > $maxLength) {
+            throw new InvalidArgumentException("Attribute [{$key}] exceeds the {$maxLength} byte input limit.");
+        }
 
         foreach (explode('|', $ruleSet) as $rule) {
             $rule = trim($rule);
@@ -97,6 +128,7 @@ trait HasSanitization
 
     protected function handleSanitizationFailure(string $key, string $rule, mixed $originalValue, Throwable $e): mixed
     {
+        report($e);
         $mode = config('sanigen.failure_mode', 'throw');
 
         if ($mode === 'throw') {
@@ -134,6 +166,7 @@ trait HasSanitization
             try {
                 $originalValue = $this->{$attribute};
             } catch (Throwable $e) {
+                report($e);
                 $originalValue = $this->getRawOriginal($attribute);
                 $usedRawFallback = true;
             }

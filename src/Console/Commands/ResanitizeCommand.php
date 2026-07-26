@@ -20,6 +20,8 @@ class ResanitizeCommand extends Command
     protected $signature = 'sanigen:resanitize
                             {model : The model class name (e.g., "App\\Models\\Post")}
                             {--chunk=200 : The number of records to process at once}
+                            {--tenant= : Restrict a tenant-owned model to one tenant id}
+                            {--all-tenants : Explicitly process every tenant}
                             {--dry-run : Count records that would change without saving}
                             {--force : Skip confirmation prompt}';
 
@@ -73,7 +75,34 @@ class ResanitizeCommand extends Command
 
                 return Command::FAILURE;
             }
+
+            $tenantColumn = (string) config('sanigen.tenant_column', 'team_id');
+            $tenantScoped = $tenantColumn !== ''
+                && $model->getConnection()->getSchemaBuilder()->hasColumn($model->getTable(), $tenantColumn);
+            $tenant = $this->option('tenant');
+            $allTenants = (bool) $this->option('all-tenants');
+
+            if ($tenantScoped && (bool) config('sanigen.resanitize_require_tenant_scope', true)) {
+                if ($allTenants && is_string($tenant) && trim($tenant) !== '') {
+                    $this->error('Use either --tenant or --all-tenants, not both.');
+
+                    return Command::FAILURE;
+                }
+
+                if (! $allTenants && (! is_string($tenant) || ! $this->validTenantIdentifier($tenant))) {
+                    $this->error('Tenant-owned models require a valid --tenant value or explicit --all-tenants.');
+
+                    return Command::FAILURE;
+                }
+
+                if ($allTenants && ! (bool) $this->option('force')) {
+                    $this->error('--all-tenants requires --force.');
+
+                    return Command::FAILURE;
+                }
+            }
         } catch (Throwable $e) {
+            report($e);
             $this->error('Error during command initialization: '.$e->getMessage());
 
             return Command::FAILURE;
@@ -103,15 +132,30 @@ class ResanitizeCommand extends Command
 
         try {
             $query = $model->newQuery();
+
+            if ($tenantScoped) {
+                $tenantScope = 'IvanBaric\\Corexis\\Database\\Scopes\\TenantScope';
+
+                if (class_exists($tenantScope)) {
+                    $query->withoutGlobalScope($tenantScope);
+                }
+
+                if (! $allTenants) {
+                    $query->where($tenantColumn, trim((string) $tenant));
+                }
+            }
+
             $totalRecords = $query->count();
             $processedRecords = 0;
             $updatedRecords = 0;
+            $failedRecords = 0;
+            $failedChunks = 0;
 
             $bar = $this->output->createProgressBar($totalRecords);
             $bar->start();
 
             // Process records in chunks to prevent memory overflow
-            $query->chunkById($chunkSize, function ($records) use (&$processedRecords, &$updatedRecords, $bar, $dryRun) {
+            $query->chunkById($chunkSize, function ($records) use (&$processedRecords, &$updatedRecords, &$failedRecords, &$failedChunks, $bar, $dryRun) {
                 if (! $dryRun) {
                     DB::beginTransaction();
                 }
@@ -126,6 +170,8 @@ class ResanitizeCommand extends Command
                                 $updatedRecords++;
                             }
                         } catch (Throwable $e) {
+                            report($e);
+                            $failedRecords++;
                             $this->error("Error sanitizing record key {$record->getKey()}: ".$e->getMessage());
                             // Continue with next record
                         }
@@ -137,6 +183,9 @@ class ResanitizeCommand extends Command
                         DB::commit();
                     }
                 } catch (Throwable $e) {
+                    report($e);
+                    $failedChunks++;
+
                     if (! $dryRun) {
                         DB::rollBack();
                     }
@@ -153,8 +202,15 @@ class ResanitizeCommand extends Command
             $this->info("Processed {$processedRecords} records.");
             $this->info($dryRun ? "Would update {$updatedRecords} records." : "Updated {$updatedRecords} records.");
 
+            if ($failedRecords > 0 || $failedChunks > 0) {
+                $this->error("Resanitization completed with {$failedRecords} failed record(s) and {$failedChunks} failed chunk(s).");
+
+                return Command::FAILURE;
+            }
+
             return Command::SUCCESS;
         } catch (Throwable $e) {
+            report($e);
             $this->error('Error during sanitization process: '.$e->getMessage());
 
             return Command::FAILURE;
@@ -170,6 +226,15 @@ class ResanitizeCommand extends Command
 
         return isset($traits[HasSanitization::class]) ||
                isset($traits[Sanigen::class]);
+    }
+
+    private function validTenantIdentifier(string $tenant): bool
+    {
+        $tenant = trim($tenant);
+
+        return $tenant !== ''
+            && strlen($tenant) <= 64
+            && preg_match('/^[A-Za-z0-9_-]+$/', $tenant) === 1;
     }
 
     /**

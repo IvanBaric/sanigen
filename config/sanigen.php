@@ -23,7 +23,12 @@ return [
     'encoding' => 'UTF-8',
     'max_html_input_length' => 32768,
     'max_strip_scripts_input_length' => 32768,
+    'max_scalar_input_length' => 65535,
+    'max_nested_items' => 500,
+    'max_nested_depth' => 8,
     'resanitize_max_chunk' => 1000,
+    'tenant_column' => 'team_id',
+    'resanitize_require_tenant_scope' => true,
     'sanitize_defaults' => [],
     'generate_defaults' => [],
 

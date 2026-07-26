@@ -51,3 +51,35 @@ test('non scalar nested values fail loudly instead of being string cast silently
     expect(fn () => $model->text_field = ['hr' => new stdClass])
         ->toThrow(InvalidArgumentException::class, 'non-scalar value');
 });
+
+test('nested values are bounded by configured depth and item limits', function () {
+    config()->set('sanigen.max_nested_depth', 2);
+    config()->set('sanigen.max_nested_items', 3);
+
+    $model = new class extends SanitizerTestModel
+    {
+        protected array $sanitize = [
+            'text_field' => 'trim',
+        ];
+    };
+
+    expect(fn () => $model->text_field = ['one' => ['two' => ['three' => 'value']]])
+        ->toThrow(InvalidArgumentException::class, 'nesting limit');
+
+    expect(fn () => $model->text_field = ['one', 'two', 'three', 'four'])
+        ->toThrow(InvalidArgumentException::class, 'item limit');
+});
+
+test('scalar values are bounded before sanitizer pipelines run', function () {
+    config()->set('sanigen.max_scalar_input_length', 5);
+
+    $model = new class extends SanitizerTestModel
+    {
+        protected array $sanitize = [
+            'text_field' => 'trim',
+        ];
+    };
+
+    expect(fn () => $model->text_field = '123456')
+        ->toThrow(InvalidArgumentException::class, 'byte input limit');
+});

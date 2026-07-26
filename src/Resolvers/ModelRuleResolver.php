@@ -69,7 +69,9 @@ final class ModelRuleResolver
 
                 $reflection = $reflection->getParentClass();
             }
-        } catch (Throwable) {
+        } catch (Throwable $exception) {
+            report($exception);
+
             return [];
         }
 
