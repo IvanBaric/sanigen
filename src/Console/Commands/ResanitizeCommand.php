@@ -2,7 +2,7 @@
 
 namespace IvanBaric\Sanigen\Console\Commands;
 
-use Illuminate\Console\Command;
+use Illuminate\Console\Command as LaravelCommand;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
 use IvanBaric\Sanigen\Resolvers\ModelRuleResolver;
@@ -10,8 +10,12 @@ use IvanBaric\Sanigen\Traits\HasSanitization;
 use IvanBaric\Sanigen\Traits\Sanigen;
 use Throwable;
 
-class ResanitizeCommand extends Command
+class ResanitizeCommand extends LaravelCommand
 {
+    private const EXIT_SUCCESS = 0;
+
+    private const EXIT_FAILURE = 1;
+
     /**
      * The name and signature of the command.
      *
@@ -45,20 +49,20 @@ class ResanitizeCommand extends Command
             if ($chunkSize < 1 || $chunkSize > $maxChunkSize) {
                 $this->error("Chunk size must be between 1 and {$maxChunkSize}.");
 
-                return Command::FAILURE;
+                return self::EXIT_FAILURE;
             }
 
             // Validate the model class
             if (! class_exists($modelClass)) {
                 $this->error("Model class {$modelClass} does not exist.");
 
-                return Command::FAILURE;
+                return self::EXIT_FAILURE;
             }
 
             if (! is_subclass_of($modelClass, Model::class)) {
                 $this->error("Model class {$modelClass} must extend ".Model::class.'.');
 
-                return Command::FAILURE;
+                return self::EXIT_FAILURE;
             }
 
             // Create an instance to check if it uses the HasSanitization trait
@@ -67,13 +71,13 @@ class ResanitizeCommand extends Command
             if (! $this->usesSanitization($model)) {
                 $this->error("Model {$modelClass} does not use the HasSanitization trait.");
 
-                return Command::FAILURE;
+                return self::EXIT_FAILURE;
             }
 
             if (ModelRuleResolver::sanitizeRules($model) === []) {
                 $this->error("Model {$modelClass} does not have any sanitization rules defined.");
 
-                return Command::FAILURE;
+                return self::EXIT_FAILURE;
             }
 
             $tenantColumn = (string) config('sanigen.tenant_column', 'team_id');
@@ -86,26 +90,26 @@ class ResanitizeCommand extends Command
                 if ($allTenants && is_string($tenant) && trim($tenant) !== '') {
                     $this->error('Use either --tenant or --all-tenants, not both.');
 
-                    return Command::FAILURE;
+                    return self::EXIT_FAILURE;
                 }
 
                 if (! $allTenants && (! is_string($tenant) || ! $this->validTenantIdentifier($tenant))) {
                     $this->error('Tenant-owned models require a valid --tenant value or explicit --all-tenants.');
 
-                    return Command::FAILURE;
+                    return self::EXIT_FAILURE;
                 }
 
                 if ($allTenants && ! (bool) $this->option('force')) {
                     $this->error('--all-tenants requires --force.');
 
-                    return Command::FAILURE;
+                    return self::EXIT_FAILURE;
                 }
             }
         } catch (Throwable $e) {
             report($e);
             $this->error('Error during command initialization: '.$e->getMessage());
 
-            return Command::FAILURE;
+            return self::EXIT_FAILURE;
         }
 
         $dryRun = (bool) $this->option('dry-run');
@@ -124,7 +128,7 @@ class ResanitizeCommand extends Command
         } else {
             $this->info('Operation cancelled.');
 
-            return Command::SUCCESS;
+            return self::EXIT_SUCCESS;
         }
 
         $this->info(($dryRun ? 'Checking' : 'Starting resanitization of')." {$modelClass} records...");
@@ -205,15 +209,15 @@ class ResanitizeCommand extends Command
             if ($failedRecords > 0 || $failedChunks > 0) {
                 $this->error("Resanitization completed with {$failedRecords} failed record(s) and {$failedChunks} failed chunk(s).");
 
-                return Command::FAILURE;
+                return self::EXIT_FAILURE;
             }
 
-            return Command::SUCCESS;
+            return self::EXIT_SUCCESS;
         } catch (Throwable $e) {
             report($e);
             $this->error('Error during sanitization process: '.$e->getMessage());
 
-            return Command::FAILURE;
+            return self::EXIT_FAILURE;
         }
     }
 

@@ -101,6 +101,7 @@ Result:
 ## Available Aliases
 
 - `text`: generic cleaned text
+- `plain_text`: cleaned multiline text
 - `title`: cleaned title-style text
 - `ascii`: cleaned ASCII-only text
 - `email`: normalized email
@@ -358,6 +359,18 @@ return [
 ## Spatie Translatable Support
 
 Sanigen works with Spatie Laravel Translatable because translatable attributes are stored as arrays. Sanigen recursively sanitizes scalar values and preserves array keys and structure.
+
+## Dynamic JSON Attributes
+
+Use a `recursive:` pipeline when a JSON attribute contains dynamic keys. Sanigen applies the selected rule to every nested string while preserving integers, floats, booleans, and null values.
+
+```php
+protected array $sanitize = [
+    'settings' => 'recursive:plain_text',
+];
+```
+
+Recursive pipelines keep the configured nesting-depth, item-count, and scalar-length limits. Objects and other unsupported values fail closed.
 
 ## Limitations
 

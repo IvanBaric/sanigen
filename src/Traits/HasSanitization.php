@@ -41,8 +41,17 @@ trait HasSanitization
         }
 
         $items = 0;
+        $preserveScalarTypes = str_starts_with($ruleSet, 'recursive:');
 
-        return $this->sanitizeStructuredValue($key, $value, $ruleSet, 0, $items);
+        if ($preserveScalarTypes) {
+            $ruleSet = trim(substr($ruleSet, strlen('recursive:')));
+
+            if ($ruleSet === '') {
+                throw new InvalidArgumentException("Attribute [{$key}] has an empty recursive sanitizer rule.");
+            }
+        }
+
+        return $this->sanitizeStructuredValue($key, $value, $ruleSet, 0, $items, $preserveScalarTypes);
     }
 
     protected function sanitizeStructuredValue(
@@ -51,6 +60,7 @@ trait HasSanitization
         string $ruleSet,
         int $depth = 0,
         int &$items = 0,
+        bool $preserveScalarTypes = false,
     ): mixed {
         if ($value === null) {
             return null;
@@ -79,10 +89,19 @@ trait HasSanitization
                     $ruleSet,
                     $depth + 1,
                     $items,
+                    $preserveScalarTypes,
                 );
             }
 
             return $sanitizedArray;
+        }
+
+        if ($preserveScalarTypes && ! is_string($value)) {
+            if (is_int($value) || is_float($value) || is_bool($value)) {
+                return $value;
+            }
+
+            throw new InvalidArgumentException("Attribute [{$key}] contains a non-scalar value that cannot be sanitized.");
         }
 
         return $this->sanitizeValue($key, $value, $ruleSet);

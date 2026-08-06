@@ -83,3 +83,62 @@ test('scalar values are bounded before sanitizer pipelines run', function () {
     expect(fn () => $model->text_field = '123456')
         ->toThrow(InvalidArgumentException::class, 'byte input limit');
 });
+
+test('recursive rules sanitize every string while preserving scalar types', function () {
+    $model = new class extends SanitizerTestModel
+    {
+        protected array $sanitize = [
+            'text_field' => 'recursive:plain_text',
+        ];
+    };
+
+    $model->text_field = [
+        'headline' => '  <b>Apartment</b>  ',
+        'nested' => [
+            'description' => "Welcome<script>alert(1)</script>\nGuests",
+            'enabled' => true,
+            'capacity' => 4,
+            'rating' => 4.8,
+            'empty' => null,
+        ],
+        'items' => [
+            ['label' => '<img src=x onerror=alert(1)>Pool'],
+        ],
+    ];
+
+    expect($model->text_field)->toBe([
+        'headline' => 'Apartment',
+        'nested' => [
+            'description' => "Welcome\nGuests",
+            'enabled' => true,
+            'capacity' => 4,
+            'rating' => 4.8,
+            'empty' => null,
+        ],
+        'items' => [
+            ['label' => 'Pool'],
+        ],
+    ]);
+});
+
+test('recursive rules reject objects and empty pipelines', function () {
+    $model = new class extends SanitizerTestModel
+    {
+        protected array $sanitize = [
+            'text_field' => 'recursive:plain_text',
+        ];
+    };
+
+    expect(fn () => $model->text_field = ['unsafe' => new stdClass])
+        ->toThrow(InvalidArgumentException::class, 'non-scalar value');
+
+    $invalidModel = new class extends SanitizerTestModel
+    {
+        protected array $sanitize = [
+            'text_field' => 'recursive:',
+        ];
+    };
+
+    expect(fn () => $invalidModel->text_field = ['value'])
+        ->toThrow(InvalidArgumentException::class, 'empty recursive sanitizer rule');
+});

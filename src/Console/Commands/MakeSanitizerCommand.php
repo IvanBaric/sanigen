@@ -2,12 +2,16 @@
 
 namespace IvanBaric\Sanigen\Console\Commands;
 
-use Illuminate\Console\Command;
+use Illuminate\Console\Command as LaravelCommand;
 use Illuminate\Filesystem\Filesystem;
 use Illuminate\Support\Str;
 
-class MakeSanitizerCommand extends Command
+class MakeSanitizerCommand extends LaravelCommand
 {
+    private const EXIT_SUCCESS = 0;
+
+    private const EXIT_FAILURE = 1;
+
     protected $signature = 'make:sanitizer
                             {name : Sanitizer class name (e.g. UsernameSanitizer or Admin/Username)}
                             {--force : Overwrite existing file}
@@ -32,7 +36,7 @@ class MakeSanitizerCommand extends Command
         if ($files->exists($targetPath) && ! $this->option('force')) {
             $this->error("Sanitizer already exists: {$targetPath}");
 
-            return Command::FAILURE;
+            return self::EXIT_FAILURE;
         }
 
         $files->ensureDirectoryExists($targetDirectory);
@@ -40,7 +44,7 @@ class MakeSanitizerCommand extends Command
 
         $this->info("Sanitizer created: {$targetPath}");
 
-        return Command::SUCCESS;
+        return self::EXIT_SUCCESS;
     }
 
     /**

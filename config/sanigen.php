@@ -7,6 +7,7 @@ return [
 
     'aliases' => [
         'text' => 'strip_html|strip_emoji|strip_newlines|trim|squish',
+        'plain_text' => 'strip_html|strip_emoji|trim',
         'title' => 'strip_html|strip_emoji|strip_newlines|trim|squish|lower|ucfirst',
         'ascii' => 'strip_html|strip_emoji|strip_newlines|trim|squish|ascii|trim',
         'email' => 'trim|lower|email',

@@ -5,6 +5,15 @@ All notable changes to the Sanigen package will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.8.0] - 2026-08-06
+
+### Added
+- Added `recursive:<rule>` pipelines for dynamic JSON attributes. Every nested string is sanitized while integer, float, boolean, and null values preserve their original types.
+- Added the `plain_text` alias for multiline text without HTML or emoji.
+
+### Security
+- Recursive pipelines retain the existing depth, item-count, scalar-length, and unsupported-value fail-closed boundaries.
+
 ## [1.7.0] - 2026-07-13
 
 ### Added

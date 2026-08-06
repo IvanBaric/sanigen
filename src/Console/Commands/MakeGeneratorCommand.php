@@ -2,12 +2,16 @@
 
 namespace IvanBaric\Sanigen\Console\Commands;
 
-use Illuminate\Console\Command;
+use Illuminate\Console\Command as LaravelCommand;
 use Illuminate\Filesystem\Filesystem;
 use Illuminate\Support\Str;
 
-class MakeGeneratorCommand extends Command
+class MakeGeneratorCommand extends LaravelCommand
 {
+    private const EXIT_SUCCESS = 0;
+
+    private const EXIT_FAILURE = 1;
+
     protected $signature = 'make:generator
                             {name : Generator class name (e.g. SlugGenerator or Content/Slug)}
                             {--force : Overwrite existing file}
@@ -32,7 +36,7 @@ class MakeGeneratorCommand extends Command
         if ($files->exists($targetPath) && ! $this->option('force')) {
             $this->error("Generator already exists: {$targetPath}");
 
-            return Command::FAILURE;
+            return self::EXIT_FAILURE;
         }
 
         $files->ensureDirectoryExists($targetDirectory);
@@ -40,7 +44,7 @@ class MakeGeneratorCommand extends Command
 
         $this->info("Generator created: {$targetPath}");
 
-        return Command::SUCCESS;
+        return self::EXIT_SUCCESS;
     }
 
     /**
