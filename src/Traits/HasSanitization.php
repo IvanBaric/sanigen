@@ -1,11 +1,16 @@
 <?php
 
+declare(strict_types=1);
+
 namespace IvanBaric\Sanigen\Traits;
 
 use InvalidArgumentException;
 use IvanBaric\Sanigen\Exceptions\SanitizationException;
 use IvanBaric\Sanigen\Registries\SanitizerRegistry;
 use IvanBaric\Sanigen\Resolvers\ModelRuleResolver;
+use IvanBaric\Sanigen\Support\CompiledSanitizationRule;
+use IvanBaric\Sanigen\Support\SanitizationRuleCompiler;
+use IvanBaric\Sanigen\Support\StructuredSanitizationEngine;
 use Throwable;
 
 trait HasSanitization
@@ -33,125 +38,73 @@ trait HasSanitization
             return $value;
         }
 
-        $rules = $this->getSanigenSanitizeRules();
-        $ruleSet = $rules[$key] ?? null;
+        $rulesByRoot = app(SanitizationRuleCompiler::class)->compile($this->getSanigenSanitizeRules());
+        $rules = $rulesByRoot[$key] ?? [];
 
-        if (! is_string($ruleSet) || $ruleSet === '') {
-            return $value;
-        }
-
-        $items = 0;
-        $preserveScalarTypes = str_starts_with($ruleSet, 'recursive:');
-
-        if ($preserveScalarTypes) {
-            $ruleSet = trim(substr($ruleSet, strlen('recursive:')));
-
-            if ($ruleSet === '') {
-                throw new InvalidArgumentException("Attribute [{$key}] has an empty recursive sanitizer rule.");
-            }
-        }
-
-        return $this->sanitizeStructuredValue($key, $value, $ruleSet, 0, $items, $preserveScalarTypes);
+        return $rules === [] ? $value : $this->sanitizeRootValue($key, $value, $rules);
     }
 
-    protected function sanitizeStructuredValue(
-        string $key,
-        mixed $value,
-        string $ruleSet,
-        int $depth = 0,
-        int &$items = 0,
-        bool $preserveScalarTypes = false,
-    ): mixed {
-        if ($value === null) {
-            return null;
-        }
-
-        $maxDepth = max(1, (int) config('sanigen.max_nested_depth', 8));
-
-        if ($depth > $maxDepth) {
-            throw new InvalidArgumentException("Attribute [{$key}] exceeds the {$maxDepth} level nesting limit.");
-        }
-
-        if (is_array($value)) {
-            $sanitizedArray = [];
-            $maxItems = max(1, (int) config('sanigen.max_nested_items', 500));
-
-            foreach ($value as $nestedKey => $nestedValue) {
-                $items++;
-
-                if ($items > $maxItems) {
-                    throw new InvalidArgumentException("Attribute [{$key}] exceeds the {$maxItems} item limit.");
-                }
-
-                $sanitizedArray[$nestedKey] = $this->sanitizeStructuredValue(
-                    $key,
-                    $nestedValue,
-                    $ruleSet,
-                    $depth + 1,
-                    $items,
-                    $preserveScalarTypes,
-                );
-            }
-
-            return $sanitizedArray;
-        }
-
-        if ($preserveScalarTypes && ! is_string($value)) {
-            if (is_int($value) || is_float($value) || is_bool($value)) {
-                return $value;
-            }
-
-            throw new InvalidArgumentException("Attribute [{$key}] contains a non-scalar value that cannot be sanitized.");
-        }
-
-        return $this->sanitizeValue($key, $value, $ruleSet);
+    /**
+     * @param  list<CompiledSanitizationRule>  $rules
+     */
+    private function sanitizeRootValue(string $root, mixed $value, array $rules): mixed
+    {
+        return app(StructuredSanitizationEngine::class)->sanitize(
+            root: $root,
+            value: $value,
+            rules: $rules,
+            sanitizeString: fn (string $string, string $pipeline, string $path): mixed => $this->sanitizeValue(
+                $path,
+                $string,
+                $pipeline,
+            ),
+        );
     }
 
     protected function sanitizeValue(string $key, mixed $value, string $ruleSet): mixed
     {
-        if (! is_scalar($value)) {
-            throw new InvalidArgumentException("Attribute [{$key}] contains a non-scalar value that cannot be sanitized.");
+        if (! is_string($value)) {
+            throw new InvalidArgumentException("Attribute [{$key}] contains a value that cannot be sanitized as a string.");
         }
 
-        $stringValue = (string) $value;
-        $maxLength = max(1, (int) config('sanigen.max_scalar_input_length', 65535));
-
-        if (strlen($stringValue) > $maxLength) {
-            throw new InvalidArgumentException("Attribute [{$key}] exceeds the {$maxLength} byte input limit.");
-        }
+        $stringValue = $value;
 
         foreach (explode('|', $ruleSet) as $rule) {
             $rule = trim($rule);
+
             if ($rule === '') {
                 continue;
             }
 
             try {
                 $sanitizer = SanitizerRegistry::resolve($rule);
-                if ($sanitizer) {
+
+                if ($sanitizer !== null) {
                     $stringValue = $sanitizer->apply($stringValue);
                 }
-            } catch (InvalidArgumentException $e) {
-                throw $e;
-            } catch (Throwable $e) {
-                return $this->handleSanitizationFailure($key, $rule, $value, $e);
+            } catch (InvalidArgumentException $exception) {
+                throw $exception;
+            } catch (Throwable $exception) {
+                return $this->handleSanitizationFailure($key, $rule, $value, $exception);
             }
         }
 
-        if ($stringValue === '' && $this->hasSanigenNumericCast($key)) {
+        $root = strtok($key, '.');
+
+        if ($stringValue === '' && is_string($root) && $this->hasSanigenNumericCast($root)) {
             return null;
         }
 
         return $stringValue;
     }
 
-    protected function handleSanitizationFailure(string $key, string $rule, mixed $originalValue, Throwable $e): mixed
+    protected function handleSanitizationFailure(string $key, string $rule, mixed $originalValue, Throwable $exception): mixed
     {
-        report($e);
+        report($exception);
         $mode = config('sanigen.failure_mode', 'throw');
 
         if ($mode === 'throw') {
-            throw new SanitizationException($key, $rule, $e);
+            throw new SanitizationException($key, $rule, $exception);
         }
 
         if ($mode === 'null') {
@@ -171,22 +124,25 @@ trait HasSanitization
             return false;
         }
 
-        $rules = $this->getSanigenSanitizeRules();
+        $rulesByRoot = app(SanitizationRuleCompiler::class)->compile($this->getSanigenSanitizeRules());
 
-        if ($rules === []) {
+        if ($rulesByRoot === []) {
             return false;
         }
 
         $updated = false;
 
-        foreach ($rules as $attribute => $_ruleSet) {
+        foreach ($rulesByRoot as $root => $rules) {
             $usedRawFallback = false;
 
             try {
-                $originalValue = $this->{$attribute};
-            } catch (Throwable $e) {
-                report($e);
-                $originalValue = $this->getRawOriginal($attribute);
+                $originalValue = $this->isSanigenTranslatableAttribute($root)
+                    && method_exists($this, 'getTranslations')
+                        ? $this->getTranslations($root)
+                        : $this->{$root};
+            } catch (Throwable $exception) {
+                report($exception);
+                $originalValue = $this->getRawOriginal($root);
                 $usedRawFallback = true;
             }
 
@@ -194,17 +150,19 @@ trait HasSanitization
                 continue;
             }
 
-            $sanitizedValue = $this->sanitizeAttribute($attribute, $originalValue);
+            $sanitizedValue = $this->sanitizeRootValue($root, $originalValue, $rules);
 
-            if ($sanitizedValue !== $originalValue) {
-                $this->{$attribute} = $sanitizedValue;
-
-                if ($usedRawFallback) {
-                    $this->original[$attribute] = null;
-                }
-
-                $updated = true;
+            if ($sanitizedValue === $originalValue) {
+                continue;
             }
+
+            parent::setAttribute($root, $sanitizedValue);
+
+            if ($usedRawFallback) {
+                $this->original[$root] = null;
+            }
+
+            $updated = true;
         }
 
         return $updated;
@@ -213,6 +171,7 @@ trait HasSanitization
     protected function hasSanigenNumericCast(string $key): bool
     {
         $cast = $this->getCasts()[$key] ?? null;
+
         if (! is_string($cast) || $cast === '') {
             return false;
         }
@@ -225,9 +184,31 @@ trait HasSanitization
     public function setAttribute($key, $value)
     {
         if (is_string($key)) {
+            if ($this->isSanigenTranslatableAttribute($key)
+                && method_exists($this, 'setSanigenTranslatableAttribute')) {
+                return $this->setSanigenTranslatableAttribute($key, $value);
+            }
+
             $value = $this->sanitizeAttribute($key, $value);
+
+            if ($this->isSanigenTranslatableAttribute($key)) {
+                if (is_array($value) && (! array_is_list($value) || $value === [])) {
+                    return $this->setTranslations($key, $value);
+                }
+
+                return $this->setTranslation($key, $this->getLocale(), $value);
+            }
         }
 
         return parent::setAttribute($key, $value);
+    }
+
+    private function isSanigenTranslatableAttribute(string $key): bool
+    {
+        return method_exists($this, 'isTranslatableAttribute')
+            && method_exists($this, 'setTranslations')
+            && method_exists($this, 'setTranslation')
+            && method_exists($this, 'getLocale')
+            && $this->isTranslatableAttribute($key);
     }
 }

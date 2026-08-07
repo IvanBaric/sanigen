@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace IvanBaric\Sanigen\Resolvers;
 
 use IvanBaric\Sanigen\Attributes\Generate;
@@ -20,9 +22,9 @@ final class ModelRuleResolver
     public static function sanitizeRules(object $model): array
     {
         return array_replace(
-            self::configRules('sanitize_defaults'),
-            self::attributeRules($model, Sanitize::class, 'rules'),
-            self::propertyRules($model, 'sanitize')
+            self::configRules('sanitize_defaults', preserveEmpty: true),
+            self::attributeRules($model, Sanitize::class, 'rules', preserveEmpty: true),
+            self::propertyRules($model, 'sanitize', preserveEmpty: true)
         );
     }
 
@@ -46,15 +48,15 @@ final class ModelRuleResolver
     /**
      * @return array<string, string>
      */
-    private static function configRules(string $key): array
+    private static function configRules(string $key, bool $preserveEmpty = false): array
     {
-        return self::normalizeRules(config("sanigen.{$key}", []));
+        return self::normalizeRules(config("sanigen.{$key}", []), $preserveEmpty);
     }
 
     /**
      * @return array<string, string>
      */
-    private static function propertyRules(object $model, string $property): array
+    private static function propertyRules(object $model, string $property, bool $preserveEmpty = false): array
     {
         try {
             $reflection = new ReflectionClass($model);
@@ -64,7 +66,7 @@ final class ModelRuleResolver
                     $ruleProperty = $reflection->getProperty($property);
                     $ruleProperty->setAccessible(true);
 
-                    return self::normalizeRules($ruleProperty->getValue($model));
+                    return self::normalizeRules($ruleProperty->getValue($model), $preserveEmpty);
                 }
 
                 $reflection = $reflection->getParentClass();
@@ -81,8 +83,12 @@ final class ModelRuleResolver
     /**
      * @return array<string, string>
      */
-    private static function attributeRules(object $model, string $attributeClass, string $attributeProperty): array
-    {
+    private static function attributeRules(
+        object $model,
+        string $attributeClass,
+        string $attributeProperty,
+        bool $preserveEmpty = false,
+    ): array {
         $reflection = new ReflectionClass($model);
         $attributes = $reflection->getAttributes($attributeClass);
 
@@ -95,7 +101,7 @@ final class ModelRuleResolver
         foreach ($attributes as $attribute) {
             $instance = $attribute->newInstance();
             $value = $instance->{$attributeProperty} ?? [];
-            $rules = array_replace($rules, self::normalizeRules($value));
+            $rules = array_replace($rules, self::normalizeRules($value, $preserveEmpty));
         }
 
         return $rules;
@@ -104,7 +110,7 @@ final class ModelRuleResolver
     /**
      * @return array<string, string>
      */
-    private static function normalizeRules(mixed $rules): array
+    private static function normalizeRules(mixed $rules, bool $preserveEmpty = false): array
     {
         if (! is_array($rules)) {
             return [];
@@ -120,7 +126,7 @@ final class ModelRuleResolver
             $attribute = trim($attribute);
             $ruleSet = trim($ruleSet);
 
-            if ($attribute === '' || $ruleSet === '') {
+            if (! $preserveEmpty && ($attribute === '' || $ruleSet === '')) {
                 continue;
             }
 

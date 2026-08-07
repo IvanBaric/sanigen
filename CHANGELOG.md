@@ -5,6 +5,38 @@ All notable changes to the Sanigen package will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+## [1.9.0] - 2026-08-07
+
+### Added
+- Added automatic recursive sanitization for every rule while preserving array keys, structure, integers, floats, booleans, and null values.
+- Added dot-notation and wildcard paths for heterogeneous JSON, including deterministic specificity rules and subtree defaults.
+- Added a single-pass structured sanitization engine, compiled rule value object, and rule compiler.
+- Added the `unicode` NFC normalizer and a direct dependency on `symfony/polyfill-intl-normalizer`.
+- Added the `normalize_newlines` primitive for multiline plain text.
+- Added `HasSanitizedTranslations` and real `spatie/laravel-translatable` integration coverage.
+
+### Changed
+- Changed root sanitizer rules to recurse automatically; `text`, `plain_text`, and `safe_html` now work directly with translations and nested arrays.
+- Changed `sanitizeAttributes()` to group rules by top-level Eloquent attribute and process each root once.
+- Changed path overlap handling so each string leaf receives exactly one pipeline, independent of declaration order.
+- Changed the standard text aliases to normalize Unicode before text or HTML cleanup.
+- Changed recursive traversal to preserve non-string scalar types instead of casting them to strings.
+
+### Deprecated
+- Deprecated the `recursive:` prefix. It remains accepted and is normalized to the ordinary pipeline without a runtime deprecation warning; it may be removed in a future major release.
+
+### Fixed
+- Fixed negative decimal input so `-12,50` remains `-12.50` instead of becoming positive.
+- Fixed multiline `plain_text` normalization for Windows and old Mac line endings.
+- Fixed same-name alias resolution so `safe_html` can call the registered base sanitizer without a false circular-alias error.
+
+### Security
+- Added shared depth, item-count, and scalar-length enforcement across an entire root traversal, including dot and wildcard rules.
+- Added fail-closed handling for objects, resources, malformed paths, and equal-specificity pipeline conflicts.
+- Added atomic structured processing so failed sanitization does not partially write a model attribute or expose submitted values in exceptions.
+
 ## [1.8.0] - 2026-08-06
 
 ### Added

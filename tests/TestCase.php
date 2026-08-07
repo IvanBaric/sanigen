@@ -26,6 +26,8 @@ abstract class TestCase extends BaseTestCase
         $this->setupSanitizerTestTable();
         $this->setupPerformanceTestTable();
         $this->setupTranslatableTestTable();
+        $this->setupStructuredTestTable();
+        $this->setupSpatieTranslatableTestTable();
 
         Config::set('sanigen.enabled', true);
     }
@@ -113,6 +115,26 @@ abstract class TestCase extends BaseTestCase
             $table->id();
             $table->json('name')->nullable();
             $table->json('description')->nullable();
+            $table->timestamps();
+        });
+    }
+
+    protected function setupStructuredTestTable(): void
+    {
+        $this->app['db']->connection()->getSchemaBuilder()->create('structured_test_models', function ($table) {
+            $table->id();
+            $table->json('settings')->nullable();
+            $table->json('translations')->nullable();
+            $table->timestamps();
+        });
+    }
+
+    protected function setupSpatieTranslatableTestTable(): void
+    {
+        $this->app['db']->connection()->getSchemaBuilder()->create('spatie_translatable_test_models', function ($table) {
+            $table->id();
+            $table->json('title')->nullable();
+            $table->json('content')->nullable();
             $table->timestamps();
         });
     }

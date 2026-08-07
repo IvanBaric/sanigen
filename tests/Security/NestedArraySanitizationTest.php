@@ -49,7 +49,7 @@ test('non scalar nested values fail loudly instead of being string cast silently
     };
 
     expect(fn () => $model->text_field = ['hr' => new stdClass])
-        ->toThrow(InvalidArgumentException::class, 'non-scalar value');
+        ->toThrow(InvalidArgumentException::class, 'unsupported value');
 });
 
 test('nested values are bounded by configured depth and item limits', function () {
@@ -130,7 +130,7 @@ test('recursive rules reject objects and empty pipelines', function () {
     };
 
     expect(fn () => $model->text_field = ['unsafe' => new stdClass])
-        ->toThrow(InvalidArgumentException::class, 'non-scalar value');
+        ->toThrow(InvalidArgumentException::class, 'unsupported value');
 
     $invalidModel = new class extends SanitizerTestModel
     {

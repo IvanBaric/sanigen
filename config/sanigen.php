@@ -6,10 +6,11 @@ return [
     'failure_mode' => 'throw',
 
     'aliases' => [
-        'text' => 'strip_html|strip_emoji|strip_newlines|trim|squish',
-        'plain_text' => 'strip_html|strip_emoji|trim',
-        'title' => 'strip_html|strip_emoji|strip_newlines|trim|squish|lower|ucfirst',
-        'ascii' => 'strip_html|strip_emoji|strip_newlines|trim|squish|ascii|trim',
+        'text' => 'unicode|strip_html|strip_emoji|strip_newlines|trim|squish',
+        'plain_text' => 'unicode|strip_html|strip_emoji|normalize_newlines|trim',
+        'title' => 'unicode|strip_html|strip_emoji|strip_newlines|trim|squish|lower|ucfirst',
+        'ascii' => 'unicode|strip_html|strip_emoji|strip_newlines|trim|squish|ascii|trim',
+        'safe_html' => 'unicode|safe_html',
         'email' => 'trim|lower|email',
         'url' => 'trim|strip_newlines|url',
         'slug' => 'trim|lower|slug',

@@ -12,6 +12,7 @@ use IvanBaric\Sanigen\Sanitizers\DecimalSanitizer;
 use IvanBaric\Sanigen\Sanitizers\DigitsSanitizer;
 use IvanBaric\Sanigen\Sanitizers\EmailSanitizer;
 use IvanBaric\Sanigen\Sanitizers\LowerSanitizer;
+use IvanBaric\Sanigen\Sanitizers\NormalizeNewlinesSanitizer;
 use IvanBaric\Sanigen\Sanitizers\PhoneCleanSanitizer;
 use IvanBaric\Sanigen\Sanitizers\SafeHtmlSanitizer;
 use IvanBaric\Sanigen\Sanitizers\SlugSanitizer;
@@ -23,6 +24,7 @@ use IvanBaric\Sanigen\Sanitizers\StripScriptsSanitizer;
 use IvanBaric\Sanigen\Sanitizers\StripTagsSanitizer;
 use IvanBaric\Sanigen\Sanitizers\TrimSanitizer;
 use IvanBaric\Sanigen\Sanitizers\UcfirstSanitizer;
+use IvanBaric\Sanigen\Sanitizers\UnicodeSanitizer;
 use IvanBaric\Sanigen\Sanitizers\UpperSanitizer;
 use IvanBaric\Sanigen\Sanitizers\UrlSanitizer;
 
@@ -34,6 +36,7 @@ class SanitizerRegistry
         'upper' => UpperSanitizer::class,
         'ucfirst' => UcfirstSanitizer::class,
         'squish' => SquishSanitizer::class,
+        'normalize_newlines' => NormalizeNewlinesSanitizer::class,
         'strip_newlines' => StripNewlinesSanitizer::class,
         'strip_html' => StripHtmlSanitizer::class,
         'strip_tags' => StripTagsSanitizer::class,
@@ -50,6 +53,7 @@ class SanitizerRegistry
         'phone_clean' => PhoneCleanSanitizer::class,
         'url' => UrlSanitizer::class,
         'slug' => SlugSanitizer::class,
+        'unicode' => UnicodeSanitizer::class,
     ];
 
     public static function resolve(string $key): ?Sanitizer

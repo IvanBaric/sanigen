@@ -4,39 +4,14 @@
 [![Total Downloads](https://img.shields.io/packagist/dt/ivanbaric/sanigen.svg?style=flat-square)](https://packagist.org/packages/ivanbaric/sanigen)
 [![License](https://img.shields.io/packagist/l/ivanbaric/sanigen.svg?style=flat-square)](https://packagist.org/packages/ivanbaric/sanigen)
 
-Sanigen provides declarative sanitization and attribute generators for Eloquent models, so teams can keep input cleanup consistent without repeating pipelines across models.
+Sanigen provides declarative sanitization and attribute generators for Laravel Eloquent models.
 
 ## Quick Start
 
 ```bash
 composer require ivanbaric/sanigen
-```
-
-Recommended: publish the config file.
-
-```bash
 php artisan vendor:publish --provider="IvanBaric\Sanigen\SanigenServiceProvider" --tag="config"
 ```
-
-Define aliases in `config/sanigen.php`, then reuse the same defaults across your models.
-
-```php
-'aliases' => [
-    'text' => 'strip_html|strip_emoji|strip_newlines|trim|squish',
-    'title' => 'strip_html|strip_emoji|strip_newlines|trim|squish|lower|ucfirst',
-    'ascii' => 'strip_html|strip_emoji|strip_newlines|trim|squish|ascii|trim',
-    'email' => 'trim|lower|email',
-    'url' => 'trim|strip_newlines|url',
-    'slug' => 'trim|lower|slug',
-    'decimal' => 'trim|decimal',
-    'phone' => 'trim|phone_clean',
-];
-```
-
-Sanigen gives you two model properties:
-
-- `$sanitize`: applies sanitizer aliases from `config/sanigen.php`
-- `$generate`: fills empty attributes on `creating` using generator rules
 
 ```php
 use Illuminate\Database\Eloquent\Model;
@@ -46,166 +21,231 @@ class Post extends Model
 {
     use Sanigen;
 
-    protected $fillable = ['name', 'description', 'content', 'email', 'website', 'slug', 'price', 'phone'];
-
     protected array $sanitize = [
-        'name' => 'title',
-        'description' => 'text',
+        'title' => 'text',
+        'description' => 'plain_text',
         'content' => 'safe_html',
         'email' => 'email',
         'website' => 'url',
-        'slug' => 'slug',
         'price' => 'decimal',
-        'phone' => 'phone',
-    ];
-
-    protected array $generate = [
-        'slug' => 'slugify:name',
-        'uuid' => 'uuid',
-        'owner_id' => 'user:id',
-        'team_id' => 'user:current_team_id',
     ];
 }
 ```
 
-```php
-$post = Post::create([
-    'name' => '  <script>alert(1)</script>my FIRST post  ',
-    'description' => '<script>alert(1)</script><p>Hello <strong>world</strong></p>',
-    'content' => '<p>Hello <strong>world</strong></p><a href="http://example.com">Read</a>',
-    'email' => ' USER@EXAMPLE.COM ',
-    'website' => 'example.com',
-    'price' => ' EUR 1,234.56 ',
-    'phone' => ' +1 (123) 456-7890 ',
-]);
-```
+Sanitization runs when an attribute is assigned through the Eloquent model. All sanitizer rules automatically recurse through arrays while preserving integer, float, boolean, null values, keys, and structure.
 
-Result:
+Sanitizer classes still receive and return one string. Sanigen's structured engine owns recursion, path matching, type preservation, limits, and conflict handling.
+
+## Structured Values
+
+### Homogeneous JSON
+
+A root rule is the default for every string in that attribute:
 
 ```php
-[
-    'uuid' => '550e8400-e29b-41d4-a716-446655440000',
-    'owner_id' => 1,
-    'team_id' => 42,
-    'name' => 'My first post',
-    'description' => 'Hello world',
-    'content' => '<p>Hello <strong>world</strong></p><a href="https://example.com" rel="noopener noreferrer">Read</a>',
-    'email' => 'user@example.com',
-    'website' => 'https://example.com',
-    'slug' => 'my-first-post',
-    'price' => '1234.56',
-    'phone' => '+11234567890',
-]
+protected array $sanitize = [
+    'translations' => 'text',
+];
+
+$model->translations = [
+    'hr' => '<b>Naslov</b>',
+    'en' => '<b>Title</b>',
+    'published' => true,
+    'revision' => 3,
+];
 ```
 
-## Available Aliases
+The two strings are cleaned while `true` remains a boolean and `3` remains an integer. Arrays may be nested to any configured depth.
 
-- `text`: generic cleaned text
-- `plain_text`: cleaned multiline text
-- `title`: cleaned title-style text
-- `ascii`: cleaned ASCII-only text
-- `email`: normalized email
-- `url`: normalized URL
-- `slug`: slug-ready value
-- `decimal`: normalized decimal number
-- `phone`: normalized phone number
+### Heterogeneous JSON
 
-## Class-Level Attributes
+Use dot notation when different fields need different pipelines:
 
-Besides model properties, you can use class-level attributes:
+```php
+protected array $sanitize = [
+    'settings.title' => 'text',
+    'settings.email' => 'email',
+    'settings.price' => 'decimal',
+];
+```
+
+Only existing matching values are sanitized. Missing paths are a no-op, keys are never created, and unrelated fields remain unchanged. If a path ends at an array, its pipeline becomes the default for every string in that subtree.
+
+### Wildcards
+
+`*` matches one existing array key, including numeric and associative keys:
+
+```php
+protected array $sanitize = [
+    'settings.contacts.*.name' => 'text',
+    'settings.contacts.*.email' => 'email',
+    'settings.groups.*.members.*.name' => 'text',
+];
+```
+
+Multiple wildcard levels are supported. Empty arrays and wildcards without matches are no-ops.
+
+Invalid paths fail before the value is written. Empty segments, partial wildcards such as `cont*cts`, and a wildcard root such as `*.email` are rejected.
+
+### Rule Precedence
+
+Each string leaf uses exactly one pipeline:
+
+1. The longer matching path wins.
+2. At equal length, the path with more literal segments wins.
+3. A root rule is the default for its entire structure.
+4. A specific child rule overrides that default.
+5. Equal-specificity matches with different pipelines throw an exception.
+
+Declaration order never changes the result:
+
+```php
+protected array $sanitize = [
+    'settings' => 'text',
+    'settings.email' => 'email',
+    'settings.contacts.*' => 'text',
+    'settings.contacts.*.email' => 'email',
+];
+```
+
+Sanigen groups these rules under `settings` and traverses that root value once.
+
+## Spatie Translatable
+
+Install Spatie's package and use Sanigen's integration trait instead of importing two conflicting `setAttribute` traits:
+
+```bash
+composer require spatie/laravel-translatable
+```
+
+```php
+use Illuminate\Database\Eloquent\Model;
+use IvanBaric\Sanigen\Traits\HasSanitizedTranslations;
+
+class Page extends Model
+{
+    use HasSanitizedTranslations;
+
+    public array $translatable = ['title', 'content'];
+
+    protected array $sanitize = [
+        'title' => 'text',
+        'content' => 'safe_html',
+    ];
+}
+
+$page->title = [
+    'hr' => '<strong>Hrvatski naslov</strong>',
+    'en' => '<strong>English title</strong>',
+];
+
+$page->content = [
+    'hr' => '<p>Hrvatski <script>alert(1)</script></p>',
+    'en' => '<p>English <script>alert(1)</script></p>',
+];
+```
+
+Every locale is sanitized automatically. The bridge preserves Spatie's normal JSON storage and translation reads while ensuring Sanigen receives the complete value before it is stored.
+
+## Standard Aliases
+
+The shipped aliases are config-driven and may be replaced in `config/sanigen.php`:
+
+```php
+'aliases' => [
+    'text' => 'unicode|strip_html|strip_emoji|strip_newlines|trim|squish',
+    'plain_text' => 'unicode|strip_html|strip_emoji|normalize_newlines|trim',
+    'title' => 'unicode|strip_html|strip_emoji|strip_newlines|trim|squish|lower|ucfirst',
+    'ascii' => 'unicode|strip_html|strip_emoji|strip_newlines|trim|squish|ascii|trim',
+    'safe_html' => 'unicode|safe_html',
+    'email' => 'trim|lower|email',
+    'url' => 'trim|strip_newlines|url',
+    'slug' => 'trim|lower|slug',
+    'decimal' => 'trim|decimal',
+    'phone' => 'trim|phone_clean',
+],
+```
+
+- `text` produces one line of ordinary text and normalizes whitespace.
+- `plain_text` keeps intentional line breaks and normalizes `\r\n` and `\r` to `\n`.
+- `safe_html` retains allowed rich HTML after parser-based sanitization.
+
+The `unicode` primitive performs only Unicode NFC normalization. It does not transliterate Croatian letters (`č ć ž š đ Č Ć Ž Š Đ`), guess legacy encodings, or repair mojibake. Invalid Unicode fails closed.
+
+The `normalize_newlines` primitive only converts Windows and old Mac line endings to `\n`.
+
+## Decimal Values
+
+`decimal` normalizes textual user input:
+
+```text
+12,50 €      -> 12.50
+1.234,56 €   -> 1234.56
+1,234.56 USD -> 1234.56
+-12,50 €     -> -12.50
+```
+
+Inside arrays, integers remain integers, floats remain floats, booleans remain booleans, and null remains null.
+
+Sanigen normalizes input. Laravel validation decides whether a value is allowed. An Eloquent cast decides how it is stored and presented. `decimal` is not a validation rule.
+
+## Deprecated `recursive:` Prefix
+
+Since every rule now recurses automatically, these declarations are equivalent:
+
+```php
+'settings' => 'text',
+'settings' => 'recursive:text',
+```
+
+`recursive:` remains accepted for applications upgrading from 1.8.0, but it is deprecated and may be removed in a future major release. New code should use the ordinary rule. An empty `recursive:` expression still throws a clear exception. No runtime deprecation warning is emitted.
+
+## Rule Sources
+
+Rules can come from three places, in this priority order:
+
+1. Model properties (`$sanitize`, `$generate`)
+2. Class-level attributes (`#[Sanitize]`, `#[Generate]`)
+3. Config defaults (`sanitize_defaults`, `generate_defaults`)
 
 ```php
 use IvanBaric\Sanigen\Attributes\Generate;
 use IvanBaric\Sanigen\Attributes\Sanitize;
 
-#[Sanitize([
-    'name' => 'title',
-    'description' => 'text',
-    'email' => 'email',
-])]
-#[Generate([
-    'slug' => 'slugify:name',
-    'uuid' => 'uuid',
-])]
+#[Sanitize(['title' => 'text', 'email' => 'email'])]
+#[Generate(['slug' => 'slugify:title', 'uuid' => 'uuid'])]
 class Post extends Model
 {
     use Sanigen;
 }
 ```
 
-Rule priority is:
+Sanigen never infers sanitizer rules from database column types.
 
-1. explicit model properties (`$sanitize`, `$generate`)
-2. class-level attributes (`#[Sanitize]`, `#[Generate]`)
-3. config defaults (`sanitize_defaults`, `generate_defaults`)
+## Built-in Sanitizers
 
-## Full Reference
+| Sanitizer | Purpose |
+| --- | --- |
+| `unicode` | Normalize valid Unicode to NFC |
+| `normalize_newlines` | Convert `\r\n` and `\r` to `\n` |
+| `trim`, `lower`, `upper`, `ucfirst`, `squish` | Text transformations |
+| `strip_newlines`, `strip_html`, `strip_tags`, `strip_emoji` | Plain-text cleanup |
+| `safe_html`, `strip_scripts` | Parser-based HTML sanitization |
+| `alpha`, `alnum`, `alpha_dash`, `ascii`, `digits` | Character filtering |
+| `decimal`, `email`, `phone_clean`, `url`, `slug` | Format normalization |
 
-<details open>
-<summary>Built-in sanitizers</summary>
+`strip_tags` is a compatibility wrapper around PHP's `strip_tags()` and is not an XSS boundary. Use `safe_html` for rich HTML that will be rendered unescaped.
 
-| Sanitizer | Description | Example |
-| --- | --- | --- |
-| `trim` | Removes whitespace from beginning and end | `" Hello "` -> `"Hello"` |
-| `lower` | Converts to lowercase | `"Hello"` -> `"hello"` |
-| `upper` | Converts to uppercase | `"hello"` -> `"HELLO"` |
-| `ucfirst` | Capitalizes first character | `"hello"` -> `"Hello"` |
-| `squish` | Normalizes whitespace to single spaces | `"Hello   World"` -> `"Hello World"` |
-| `strip_newlines` | Removes all line breaks | `"Line 1\nLine 2"` -> `"Line 1Line 2"` |
-| `strip_html` | Removes all HTML for ordinary text after dropping dangerous elements | `"<p>Hello</p>"` -> `"Hello"` |
-| `strip_tags` | Compatibility wrapper around PHP `strip_tags()`; not an XSS security boundary | `"<p>Hello</p>"` -> `"Hello"` |
-| `strip_scripts` | Compatibility rule backed by the parser-based HTML sanitizer, then limited to configured tags | `"<script>alert(1)</script>Hello"` -> `"Hello"` |
-| `safe_html` | Parser-based sanitizer for rich HTML rendered unescaped | `"<p>Hello <strong>world</strong></p>"` -> safe HTML |
-| `strip_emoji` | Removes emoji characters | `"Hello emoji World"` -> `"Hello  World"` |
-| `alpha` | Keeps only letters | `"Hello123"` -> `"Hello"` |
-| `alnum` | Keeps only letters and numbers | `"Hello123!"` -> `"Hello123"` |
-| `alpha_dash` | Keeps letters, numbers, hyphens, underscores | `"Hello-123_!"` -> `"Hello-123_"` |
-| `ascii` | Keeps only ASCII characters | `"cafe ć"` -> `"cafe"` |
-| `digits` | Keeps only digits | `"Price: $123.45"` -> `"12345"` |
-| `decimal` | Keeps decimal number characters and normalizes separators | `"1,234.56 EUR"` -> `"1234.56"` |
-| `email` | Sanitizes email addresses | `" USER@EXAMPLE.COM "` -> `"user@example.com"` |
-| `phone_clean` | Sanitizes phone numbers | `"(123) 456-7890"` -> `"+1234567890"` |
-| `url` | Validates and normalizes HTTP/HTTPS URLs | `"example.com"` -> `"https://example.com"` |
-| `slug` | Creates a URL-friendly slug | `"Hello World"` -> `"hello-world"` |
+## Custom Sanitizers and Aliases
 
-</details>
-
-<details open>
-<summary>Built-in generators</summary>
-
-| Generator | Purpose | Example |
-| --- | --- | --- |
-| `uuid` | UUID v4 | `550e8400-e29b-41d4-a716-446655440000` |
-| `uuid:v7` | UUID v7 | `018f0f4b-9c3a-7c3e-9d9a-2c3c4b5a6d7e` |
-| `uuid:v8` | UUID v8 | `018f0f4b-9c3a-8c3e-9d9a-2c3c4b5a6d7e` |
-| `ulid` | ULID | `01J3Z3N6K2Z9N0R2Z7T1W5Y8QG` |
-| `autoincrement` | next numeric value | `1` -> `2` -> `3` |
-| `unique_string:length` | unique random string | `unique_string:8` -> `A1B2C3D4` |
-| `random_string:length` | random string | `random_string:16` -> `aZ2kLm9Qp0xYt1uV` |
-| `slugify:field` | unique slug from another field | `slugify:title` -> `my-post-title` |
-| `slugify:field,date` | unique slug with date suffix | `slugify:title,date` -> `my-post-title-27-03-2026` |
-| `slugify:field,uuid` | unique slug with UUID suffix | `slugify:title,uuid` -> `my-post-title-550e8400-e29b-41d4-a716-446655440000` |
-| `carbon:+7 days` | Carbon date from a modifier | `carbon:+7 days` -> `2026-04-03 12:00:00` |
-| `user:property` | authenticated user property | `user:id` -> `1`, `user:email` -> `user@example.com` |
-
-</details>
-
-<details>
-<summary>Custom sanitizers</summary>
-
-Scaffold a sanitizer class:
-
-```bash
-php artisan make:sanitizer Username
-php artisan make:sanitizer Admin/TitleClean --force
-```
+Every custom sanitizer handles one string:
 
 ```php
 namespace App\Sanitizers;
 
 use IvanBaric\Sanigen\Sanitizers\Contracts\Sanitizer;
 
-class UsernameSanitizer implements Sanitizer
+final class UsernameSanitizer implements Sanitizer
 {
     public function apply(string $value): string
     {
@@ -214,169 +254,99 @@ class UsernameSanitizer implements Sanitizer
 }
 ```
 
-Register it:
-
 ```php
 use IvanBaric\Sanigen\Registries\SanitizerRegistry;
 
 SanitizerRegistry::register('username', \App\Sanitizers\UsernameSanitizer::class);
 ```
 
-Use it:
-
-```php
-protected $sanitize = [
-    'username' => 'username',
-];
-```
-
-</details>
-
-<details>
-<summary>Custom generators</summary>
-
-Scaffold a generator class:
+Aliases can contain built-in sanitizers, custom sanitizers, or other aliases. Circular aliases fail clearly. An alias may share a name with a base sanitizer, as the shipped `safe_html` alias does.
 
 ```bash
-php artisan make:generator Slug
-php artisan make:generator Content/Slug --force
+php artisan make:sanitizer Username
+php artisan make:sanitizer Admin/TitleClean --force
 ```
 
-```php
-namespace App\Generators;
+## Generators
 
-use IvanBaric\Sanigen\Generators\Contracts\GeneratorContract;
-
-class CouponCodeGenerator implements GeneratorContract
-{
-    public function generate(string $field, object $model): mixed
-    {
-        return 'SALE-' . strtoupper(str()->random(8));
-    }
-}
-```
-
-Register it:
+The generator API is unchanged:
 
 ```php
-use IvanBaric\Sanigen\Registries\GeneratorRegistry;
-
-GeneratorRegistry::register('coupon_code', \App\Generators\CouponCodeGenerator::class);
-```
-
-Use it:
-
-```php
-protected $generate = [
-    'code' => 'coupon_code',
+protected array $generate = [
+    'uuid' => 'uuid:v7',
+    'slug' => 'slugify:title',
+    'code' => 'unique_string:10',
+    'expires_at' => 'carbon:+7 days',
+    'owner_id' => 'user:id',
 ];
 ```
 
-</details>
+Built-in generators include `uuid`, `ulid`, `autoincrement`, `unique_string`, `random_string`, `slugify`, `carbon`, and `user`.
 
-## Resanitize Existing Rows
+Custom generators continue to use `GeneratorRegistry::register()` and `GeneratorContract`:
 
-Warning: this command updates existing database records. Run it on a backup-aware deployment path and test it on staging first.
+```bash
+php artisan make:generator CouponCode
+```
+
+Database unique indexes remain the final authority for values that must be unique under concurrent requests.
+
+## Security Model
+
+Sanigen is one layer in the input lifecycle:
+
+1. Laravel validation rejects disallowed input.
+2. Sanigen cleans and normalizes values assigned through Eloquent.
+3. Eloquent casts control storage and presentation types.
+4. Blade escaping protects ordinary output.
+
+Keep Blade escaping enabled for ordinary text:
+
+```blade
+{{ $post->description }}
+```
+
+Render unescaped content only when it is intentionally sanitized with `safe_html`:
+
+```blade
+{!! $post->content !!}
+```
+
+Every root traversal enforces:
+
+- `max_nested_depth`
+- `max_nested_items`
+- `max_scalar_input_length`
+- `max_html_input_length` and sanitizer-specific limits
+
+The item counter is shared across the complete root operation. Scalar length is checked before a sanitizer pipeline runs. Objects and resources fail closed with the root and nested path in the exception, without including the submitted value. Sanitization builds a copy and does not partially write an attribute when processing fails.
+
+Sanitizer failures default to:
+
+```php
+'failure_mode' => 'throw',
+```
+
+Supported modes are `throw`, `null`, and `original`. `original` is a compatibility mode that may preserve unsafe input and should be used only with an explicit migration plan. Missing sanitizers separately support `throw`, `ignore`, and `log`; `throw` is the default.
+
+## Existing Rows
+
+`sanitizeAttributes()` processes each unique top-level attribute once and returns whether anything changed.
+
+The resanitize command applies current rules to stored models:
 
 ```bash
 php artisan sanigen:resanitize "App\Models\Post" --chunk=200
 php artisan sanigen:resanitize "App\Models\Post" --dry-run
 ```
 
-`sanigen:resanitize` validates the model class, refuses invalid chunk sizes, catches `Throwable`, and does not print record values.
-
-## Security Model
-
-Sanigen is one layer in the input lifecycle:
-
-1. Laravel validation rejects invalid data before your model accepts it.
-2. Sanigen cleans and normalizes values as they pass through an Eloquent model.
-3. Blade escaping protects browser output.
-
-For ordinary user text, keep Blade escaping enabled:
-
-```blade
-{{ $post->description }}
-```
-
-Only render unescaped HTML when the attribute is explicitly sanitized with `safe_html`:
-
-```blade
-{!! $post->content !!}
-```
-
-Sanigen is not a replacement for Laravel validation. It only runs when data goes through an Eloquent model. Raw SQL, direct Query Builder updates, and bulk updates that bypass model events can bypass Sanigen.
-
-`strip_tags` is kept for compatibility but is not complete XSS protection. Use `safe_html` for rich HTML. The `url` sanitizer accepts only HTTP and HTTPS by default; disallowed schemes such as `javascript:`, `data:`, `file:` and `ftp:` return an empty string.
-
-Sanitization failures are fail-closed by default:
-
-```php
-'failure_mode' => 'throw',
-```
-
-Supported modes are `throw`, `null`, and `original`. The `original` mode is only for explicit compatibility migrations because it can preserve unsafe input.
-
-## Unique Values
-
-Generators such as `slugify`, `unique_string`, and `autoincrement` reduce collisions but cannot guarantee uniqueness under parallel requests by themselves. The database must be the final authority for values that must be unique.
-
-Use unique indexes for tenant-scoped values:
-
-```php
-$table->unique(['team_id', 'slug']);
-$table->unique(['team_id', 'code']);
-```
-
-## Production Notes
-
-```php
-return [
-    'enabled' => true,
-    'missing_sanitizer' => 'throw',
-    'failure_mode' => 'throw',
-    'aliases' => [
-        'text' => 'strip_html|strip_emoji|strip_newlines|trim|squish',
-        'title' => 'strip_html|strip_emoji|strip_newlines|trim|squish|lower|ucfirst',
-        'ascii' => 'strip_html|strip_emoji|strip_newlines|trim|squish|ascii|trim',
-        'email' => 'trim|lower|email',
-        'url' => 'trim|strip_newlines|url',
-        'slug' => 'trim|lower|slug',
-        'decimal' => 'trim|decimal',
-        'phone' => 'trim|phone_clean',
-    ],
-    'allowed_html_tags' => '<p><strong><em><a><ul><ol><li><br>',
-    'safe_html_allowed_schemes' => ['http', 'https', 'mailto'],
-    'allowed_url_schemes' => ['http', 'https'],
-    'default_url_scheme' => 'https',
-    'encoding' => 'UTF-8',
-    'max_html_input_length' => 32768,
-    'sanitize_defaults' => [],
-    'generate_defaults' => [],
-];
-```
-
-## Spatie Translatable Support
-
-Sanigen works with Spatie Laravel Translatable because translatable attributes are stored as arrays. Sanigen recursively sanitizes scalar values and preserves array keys and structure.
-
-## Dynamic JSON Attributes
-
-Use a `recursive:` pipeline when a JSON attribute contains dynamic keys. Sanigen applies the selected rule to every nested string while preserving integers, floats, booleans, and null values.
-
-```php
-protected array $sanitize = [
-    'settings' => 'recursive:plain_text',
-];
-```
-
-Recursive pipelines keep the configured nesting-depth, item-count, and scalar-length limits. Objects and other unsupported values fail closed.
+This command updates records. Test it on staging and use a backup-aware deployment path.
 
 ## Limitations
 
-Sanigen only runs when data goes through an Eloquent model instance. It does not sanitize direct database writes, raw queries, or Query Builder updates that skip model events.
+Sanigen runs only when data passes through an Eloquent model or `sanitizeAttributes()` is called. Raw SQL, Query Builder updates, and bulk operations that bypass model assignment are not sanitized.
 
-## Tests
+## Development
 
 ```bash
 composer install
